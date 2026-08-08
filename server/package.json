@@ -1,0 +1,20 @@
+{
+  "name": "vanning-push-server",
+  "version": "1.0.0",
+  "description": "Backend push-tjeneste for Vanning – Plante App. Sender ekte varsler når planter trenger vann, selv når appen er lukket.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "generate-keys": "node generate-vapid-keys.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "node-cron": "^4.6.0",
+    "web-push": "^3.6.7"
+  }
+}

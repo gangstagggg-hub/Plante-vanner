@@ -8,8 +8,19 @@ En elegant PWA (Progressive Web App) som minner deg på når plantene dine treng
 - Hele plantekortet skifter farge etter hvor nær vanningsdagen er (grønn → gul → rød)
 - Hold inne i 2 sekunder på et kort for å registrere at du har vannet
 - Dobbeltklikk/dobbelttrykk på et kort for å redigere eller slette planten
+- Varsler (🔔-knappen øverst) sender en notifikasjon når en plante trenger vann
 - All data lagres i nettleseren (`localStorage`) — status er riktig hver gang du åpner appen, selv dager senere
 - Installerbar på hjemskjermen på mobil (PWA), med egen app-ikon og offline-støtte
+
+## Om varslene
+
+Trykk på 🔔-knappen øverst i appen for å slå på varsler. Appen sjekker automatisk
+lokalt hver gang du åpner den om noen planter trenger vann i dag.
+
+**For at varsler skal fungere selv når appen er helt lukket**, følger det med en
+egen backend push-server i `server`-mappen. Se `server/README.md` for hvordan du
+publiserer den (tar ca. 10 minutter, gratis på Render.com) og kobler den til appen.
+Uten denne serveren fungerer varslene kun mens du har appen åpen eller nylig åpnet.
 
 ## Slik legger du den ut på GitHub Pages
 
@@ -27,10 +38,11 @@ En elegant PWA (Progressive Web App) som minner deg på når plantene dine treng
 ```
 index.html          – selve appen (HTML/CSS/JS)
 manifest.json        – PWA-metadata (navn, farger, ikoner)
-sw.js                 – service worker for offline-støtte
+sw.js                 – service worker for offline-støtte og push-varsler
 icons/                – app-ikon i alle nødvendige størrelser
 icon-master.svg        – kildefil for ikonet (kan redigeres videre)
 icon-maskable.svg      – kildefil for Android sin maskable ikon-variant
+server/                – backend push-server (se server/README.md)
 ```
 
 ## Om datalagringen

@@ -41,3 +41,33 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) return client.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow('./index.html');
+    })
+  );
+});
+
+// Ekte push-varsel mottatt fra backend-serveren
+self.addEventListener('push', (event) => {
+  let data = { title: '🌱 Vanning', body: 'En av plantene dine trenger vann.' };
+  try{
+    if(event.data) data = event.data.json();
+  }catch(e){
+    if(event.data) data.body = event.data.text();
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: 'icons/icon-192.png',
+      badge: 'icons/icon-192.png',
+      tag: 'vanning-push-' + data.title
+    })
+  );
+});

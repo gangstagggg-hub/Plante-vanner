@@ -61,6 +61,48 @@
   header.app-head{
     padding:6px 4px 26px;
   }
+  .head-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .notify-btn{
+    width:34px; height:34px;
+    border-radius:50%;
+    border:1px solid var(--line);
+    background:var(--card);
+    color:var(--ink-soft);
+    font-size:15px;
+    cursor:pointer;
+    flex:none;
+    display:flex; align-items:center; justify-content:center;
+    transition:background .2s ease, color .2s ease, border-color .2s ease;
+  }
+  .notify-btn.on{
+    background:rgba(124,144,112,0.18);
+    border-color:var(--sage);
+    color:#43552F;
+  }
+  .notify-toast{
+    position:fixed;
+    left:50%; bottom:24px;
+    transform:translate(-50%, 12px);
+    background:var(--ink);
+    color:var(--paper);
+    font-size:12.5px;
+    font-weight:500;
+    padding:10px 16px;
+    border-radius:12px;
+    box-shadow:0 10px 24px rgba(0,0,0,0.25);
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .25s ease, transform .25s ease;
+    z-index:70;
+    max-width:88%;
+    text-align:center;
+  }
+  .notify-toast.show{ opacity:1; transform:translate(-50%, 0); }
   .eyebrow{
     font-size:11px;
     letter-spacing:.16em;
@@ -533,7 +575,10 @@
 
 <div class="phone">
   <header class="app-head">
-    <p class="eyebrow">Plante App</p>
+    <div class="head-row">
+      <p class="eyebrow">Plante App</p>
+      <button class="notify-btn" id="notifyBtn" title="Varsler">🔕</button>
+    </div>
     <h1>God morgen.<br><em>Noen</em> venter på vann.</h1>
     <p class="sub">Hold oversikt over hver plante og få beskjed før den blir tørst.</p>
   </header>
@@ -623,7 +668,40 @@
   </div>
 </div>
 
+<div class="notify-toast" id="notifyToast"></div>
+
 <script>
+  // --- Backend push-tjeneste ---
+  // Fyll inn adressen til din publiserte backend her etter deploy (se server/README).
+  // Eksempel: 'https://vanning-push-server.onrender.com'
+  const BACKEND_URL = ''; // TODO: sett inn URL til backend her
+  const VAPID_PUBLIC_KEY = 'BKZR-Won1P0cdKiiHcxugSMMUBKeFyiijy4XxTTgSDAL--nZqKlMUpCb3KBCXzf1L9GlV2l325cVGb_LNbKp2r8';
+
+  function getDeviceId(){
+    let id = localStorage.getItem('vanning-device-id');
+    if(!id){
+      id = (crypto.randomUUID ? crypto.randomUUID() : 'dev-' + Date.now() + '-' + Math.random().toString(16).slice(2));
+      localStorage.setItem('vanning-device-id', id);
+    }
+    return id;
+  }
+  const deviceId = getDeviceId();
+
+  function backendConfigured(){
+    return !!BACKEND_URL;
+  }
+
+  async function syncPlantsToServer(){
+    if(!backendConfigured()) return;
+    try{
+      await fetch(BACKEND_URL + '/api/plants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId, plants })
+      });
+    }catch(e){ /* stille feil — appen fungerer uansett lokalt */ }
+  }
+
   const STORAGE_KEY = 'vanning-plants';
 
   function loadPlants(){
@@ -634,6 +712,7 @@
   }
   function savePlants(){
     try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(plants)); }catch(e){}
+    syncPlantsToServer();
   }
 
   const plants = loadPlants();
@@ -982,6 +1061,165 @@
     installBtn.style.display = 'none';
     showInstallBanner();
   }
+
+  // --- Varsler om vanningsdag ---
+  const notifyBtn = document.getElementById('notifyBtn');
+  const notifyToast = document.getElementById('notifyToast');
+  let toastTimer = null;
+
+  function showToast(msg){
+    notifyToast.textContent = msg;
+    notifyToast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => notifyToast.classList.remove('show'), 3600);
+  }
+
+  function updateNotifyBtn(){
+    const enabled = localStorage.getItem('vanning-notify-enabled') === '1'
+      && typeof Notification !== 'undefined' && Notification.permission === 'granted';
+    notifyBtn.textContent = enabled ? '🔔' : '🔕';
+    notifyBtn.classList.toggle('on', enabled);
+  }
+
+  async function sendNotification(title, body){
+    if(typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    try{
+      if('serviceWorker' in navigator){
+        const reg = await navigator.serviceWorker.ready;
+        reg.showNotification(title, {
+          body,
+          icon: 'icons/icon-192.png',
+          badge: 'icons/icon-192.png',
+          tag: 'vanning-reminder-' + title
+        });
+        return;
+      }
+    }catch(e){}
+    new Notification(title, { body, icon: 'icons/icon-192.png' });
+  }
+
+  // Sjekker om noen planter trenger vann i dag, og varsler maks én gang per plante per dag
+  function checkWateringDueAndNotify(){
+    if(localStorage.getItem('vanning-notify-enabled') !== '1') return;
+    if(typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+
+    const today = new Date().toISOString().slice(0,10);
+    let changed = false;
+
+    plants.forEach(p => {
+      const daysLeft = daysLeftFor(p);
+      if(daysLeft <= 0 && p.lastNotified !== today){
+        sendNotification(
+          `🌱 ${p.navn} trenger vann`,
+          `${p.rom} · ${p.mengde} — ${daysLeft < 0 ? 'forsinket ' + Math.abs(daysLeft) + ' dager' : 'i dag'}.`
+        );
+        p.lastNotified = today;
+        changed = true;
+      }
+    });
+
+    if(changed) savePlants();
+  }
+
+  // --- Ekte push-abonnement mot backend (fungerer selv når appen er lukket) ---
+  function urlBase64ToUint8Array(base64String){
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for(let i = 0; i < rawData.length; ++i){ outputArray[i] = rawData.charCodeAt(i); }
+    return outputArray;
+  }
+
+  async function subscribeToPush(){
+    if(!backendConfigured()) return false;
+    if(!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+    try{
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if(!sub){
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+      }
+      await fetch(BACKEND_URL + '/api/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId, subscription: sub })
+      });
+      await syncPlantsToServer();
+      return true;
+    }catch(e){
+      console.error('Push-abonnement feilet', e);
+      return false;
+    }
+  }
+
+  async function unsubscribeFromPush(){
+    if(!backendConfigured()) return;
+    try{
+      await fetch(BACKEND_URL + '/api/unsubscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId })
+      });
+    }catch(e){}
+  }
+
+  notifyBtn.addEventListener('click', async () => {
+    if(typeof Notification === 'undefined'){
+      showToast('Nettleseren din støtter dessverre ikke varsler.');
+      return;
+    }
+    const currentlyOn = localStorage.getItem('vanning-notify-enabled') === '1' && Notification.permission === 'granted';
+
+    if(currentlyOn){
+      localStorage.setItem('vanning-notify-enabled', '0');
+      updateNotifyBtn();
+      unsubscribeFromPush();
+      showToast('Varsler er slått av.');
+      return;
+    }
+
+    if(Notification.permission === 'denied'){
+      showToast('Varsler er blokkert i nettleseren. Slå på i innstillingene og prøv igjen.');
+      return;
+    }
+
+    const permission = Notification.permission === 'granted'
+      ? 'granted'
+      : await Notification.requestPermission();
+
+    if(permission === 'granted'){
+      localStorage.setItem('vanning-notify-enabled', '1');
+      updateNotifyBtn();
+      checkWateringDueAndNotify();
+
+      if(backendConfigured()){
+        const ok = await subscribeToPush();
+        showToast(ok
+          ? 'Varsler er slått på — du får beskjed selv om appen er lukket.'
+          : 'Varsler er slått på lokalt, men kunne ikke koble til push-tjenesten.');
+      } else {
+        showToast('Varsler er slått på — du får beskjed når appen er åpen.');
+      }
+    } else {
+      showToast('Du må gi tillatelse for å få varsler.');
+    }
+  });
+
+  updateNotifyBtn();
+  checkWateringDueAndNotify();
+  if(localStorage.getItem('vanning-notify-enabled') === '1' && backendConfigured()){
+    subscribeToPush();
+  }
+
+  // Sjekk igjen når appen åpnes/kommer i forgrunnen, og med jevne mellomrom mens den er åpen
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible') checkWateringDueAndNotify();
+  });
+  setInterval(checkWateringDueAndNotify, 30 * 60 * 1000);
 </script>
 
 </body>
