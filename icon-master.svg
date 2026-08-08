@@ -1,0 +1,40 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3B4F31"/>
+      <stop offset="0.55" stop-color="#5C7A50"/>
+      <stop offset="1" stop-color="#7C9068"/>
+    </linearGradient>
+    <linearGradient id="leaf" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FBFAF3"/>
+      <stop offset="1" stop-color="#EFEBDC"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="120" fill="url(#bg)"/>
+
+  <!-- subtle inner glow -->
+  <ellipse cx="256" cy="150" rx="190" ry="150" fill="#ffffff" opacity="0.05"/>
+
+  <!-- ground line -->
+  <path d="M164 396 C206 380 306 380 348 396" stroke="#FBFAF3" stroke-width="11" stroke-linecap="round" fill="none" opacity="0.92"/>
+
+  <!-- stem -->
+  <path d="M256 392 C256 392 253 300 256 246" stroke="#FBFAF3" stroke-width="11" stroke-linecap="round" fill="none"/>
+
+  <!-- left leaf -->
+  <path d="M254 300 C202 296 160 262 156 214 C208 212 252 246 260 296 Z" fill="url(#leaf)"/>
+  <path d="M162 220 C198 224 232 250 252 288" stroke="#3B4F31" stroke-width="3.5" stroke-linecap="round" fill="none" opacity="0.28"/>
+
+  <!-- right leaf -->
+  <path d="M262 312 C316 306 356 270 358 220 C304 220 262 256 254 308 Z" fill="url(#leaf)"/>
+  <path d="M350 226 C314 232 280 260 260 300" stroke="#3B4F31" stroke-width="3.5" stroke-linecap="round" fill="none" opacity="0.28"/>
+
+  <!-- center leaf (tallest) -->
+  <path d="M256 246 C212 224 196 158 232 104 C272 138 282 208 256 246 Z" fill="url(#leaf)"/>
+  <path d="M234 112 C246 148 254 196 256 240" stroke="#3B4F31" stroke-width="3.5" stroke-linecap="round" fill="none" opacity="0.28"/>
+
+  <!-- water droplet accent -->
+  <path d="M378 158 C378 182 360 198 344 198 C328 198 314 184 314 166 C314 142 344 106 344 106 C344 106 378 132 378 158 Z" fill="#C9A24B"/>
+  <ellipse cx="336" cy="150" rx="6" ry="9" fill="#EFCB7E" opacity="0.65"/>
+</svg>
