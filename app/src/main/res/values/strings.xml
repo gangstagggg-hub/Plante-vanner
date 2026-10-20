@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Verdant</string>
+    <string name="saved_to_downloads">%1$s saved to Downloads</string>
+    <string name="channel_name">Watering reminders</string>
+    <string name="channel_description">Daily reminder when a plant needs water</string>
+</resources>

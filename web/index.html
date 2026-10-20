@@ -1,0 +1,2308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script>
+  // Applied before first paint to avoid a light/dark flash
+  (function(){
+    try{
+      var pref = localStorage.getItem('verdant-theme') || 'system';
+      var resolved = pref === 'system'
+        ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+        : pref;
+      document.documentElement.setAttribute('data-theme', resolved);
+    }catch(e){}
+  })();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Verdant — Plant Care</title>
+<meta name="description" content="Keep track of your houseplants and get notified when they need water.">
+<meta name="color-scheme" content="light dark">
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2B3626">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Verdant">
+
+<!-- Icons -->
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="icons/icon-16.png">
+<link rel="shortcut icon" href="icons/favicon.ico">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+<style>
+@font-face{font-family:'Fraunces';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/fraunces-latin-400-normal.woff2) format('woff2');}
+@font-face{font-family:'Fraunces';font-style:normal;font-weight:500;font-display:swap;src:url(fonts/fraunces-latin-500-normal.woff2) format('woff2');}
+@font-face{font-family:'Fraunces';font-style:normal;font-weight:600;font-display:swap;src:url(fonts/fraunces-latin-600-normal.woff2) format('woff2');}
+@font-face{font-family:'Fraunces';font-style:normal;font-weight:700;font-display:swap;src:url(fonts/fraunces-latin-700-normal.woff2) format('woff2');}
+@font-face{font-family:'Work Sans';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/work-sans-latin-400-normal.woff2) format('woff2');}
+@font-face{font-family:'Work Sans';font-style:normal;font-weight:500;font-display:swap;src:url(fonts/work-sans-latin-500-normal.woff2) format('woff2');}
+@font-face{font-family:'Work Sans';font-style:normal;font-weight:600;font-display:swap;src:url(fonts/work-sans-latin-600-normal.woff2) format('woff2');}
+</style>
+<style>
+  :root{
+    --paper:#EEEFE3;
+    --paper-deep:#E4E6D6;
+    --card:#FBFBF5;
+    --ink:#2B3626;
+    --ink-soft:#5C6B54;
+    --sage:#7C9070;
+    --clay:#B5654A;
+    --clay-soft:#DDA98E;
+    --red:#B23B37;
+    --gold:#C9A24B;
+    --line: rgba(43,54,38,0.14);
+    --shadow: 0 10px 30px rgba(43,54,38,0.10), 0 2px 6px rgba(43,54,38,0.06);
+    --thumb-grad-a:#DCE3CE;
+    --thumb-grad-b:#C9D4B4;
+    --status-soon-a:#FCF6E6;
+    --status-soon-b:#F5E7C4;
+    --status-due-a:#FBEAE7;
+    --status-due-b:#F1D0CA;
+  }
+
+  :root[data-theme="dark"]{
+    --paper:#1C2420;
+    --paper-deep:#141A16;
+    --card:#242D24;
+    --ink:#ECEEE4;
+    --ink-soft:#9FAA92;
+    --sage:#8FAE7C;
+    --clay:#D98363;
+    --clay-soft:#8A5A44;
+    --red:#E0776F;
+    --gold:#D9B56A;
+    --line: rgba(236,238,228,0.14);
+    --shadow: 0 10px 30px rgba(0,0,0,0.45), 0 2px 6px rgba(0,0,0,0.3);
+    --thumb-grad-a:#2E3A2A;
+    --thumb-grad-b:#26301F;
+    --status-soon-a:#3A331C;
+    --status-soon-b:#4A3F1E;
+    --status-due-a:#3A2420;
+    --status-due-b:#4A2A24;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(circle at 15% 0%, rgba(124,144,112,0.10), transparent 45%),
+      radial-gradient(circle at 100% 30%, rgba(201,162,75,0.08), transparent 40%),
+      var(--paper);
+    font-family:'Work Sans', sans-serif;
+    color:var(--ink);
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    padding:32px 14px 80px;
+    transition:background .2s ease, color .2s ease;
+  }
+
+  .phone{
+    width:100%;
+    max-width:420px;
+  }
+
+  header.app-head{
+    padding:6px 4px 20px;
+  }
+  .head-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .eyebrow{
+    font-size:11px;
+    letter-spacing:.16em;
+    text-transform:uppercase;
+    color:var(--sage);
+    font-weight:600;
+    margin:0;
+  }
+  .head-actions{ display:flex; gap:8px; }
+  .icon-btn{
+    width:34px; height:34px;
+    border-radius:50%;
+    border:1px solid var(--line);
+    background:var(--card);
+    color:var(--ink-soft);
+    font-size:15px;
+    cursor:pointer;
+    flex:none;
+    display:flex; align-items:center; justify-content:center;
+    transition:background .2s ease, color .2s ease, border-color .2s ease;
+  }
+  .icon-btn.on{
+    background:rgba(124,144,112,0.18);
+    border-color:var(--sage);
+    color:var(--sage);
+  }
+  h1{
+    font-family:'Fraunces', serif;
+    font-optical-sizing:auto;
+    font-weight:600;
+    font-size:34px;
+    line-height:1.05;
+    margin:14px 0 0;
+    color:var(--ink);
+  }
+  h1 em{
+    font-style:italic;
+    font-weight:500;
+    color:var(--clay);
+  }
+  .sub{
+    margin:8px 0 0;
+    font-size:14px;
+    color:var(--ink-soft);
+    max-width:34ch;
+  }
+
+  .toolbar{
+    display:flex;
+    gap:10px;
+    margin-top:18px;
+  }
+  .search-box{ flex:1; position:relative; }
+  .search-box .search-icon{
+    position:absolute; left:13px; top:50%; transform:translateY(-50%);
+    font-size:13px; color:var(--ink-soft); pointer-events:none;
+  }
+  .search-box input{
+    width:100%;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:11px 14px 11px 34px;
+    font-family:'Work Sans', sans-serif;
+    font-size:14px;
+    color:var(--ink);
+    outline:none;
+  }
+  .search-box input::placeholder{ color:var(--ink-soft); }
+  .sort-btn{
+    flex:none;
+    display:flex; align-items:center; gap:6px;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:10px 13px;
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--ink);
+    cursor:pointer;
+    white-space:nowrap;
+    font-family:'Work Sans', sans-serif;
+  }
+
+  .filter-chips{
+    display:flex;
+    gap:8px;
+    margin-top:12px;
+    overflow-x:auto;
+    padding-bottom:2px;
+  }
+  .filter-chips::-webkit-scrollbar{ display:none; }
+  .chip{
+    flex:none;
+    border:1px solid var(--line);
+    background:var(--card);
+    color:var(--ink-soft);
+    border-radius:999px;
+    padding:7px 14px;
+    font-size:12.5px;
+    font-weight:600;
+    cursor:pointer;
+    font-family:'Work Sans', sans-serif;
+    transition:background .2s ease, color .2s ease, border-color .2s ease;
+  }
+  .chip.active{
+    background:var(--ink);
+    color:var(--paper);
+    border-color:var(--ink);
+  }
+
+  .add-tile-wrap{ margin-top:18px; }
+  .add-tile{
+    width:100%;
+    border:1.5px dashed var(--sage);
+    border-radius:18px;
+    background:transparent;
+    color:var(--ink);
+    font-family:'Work Sans', sans-serif;
+    font-weight:600;
+    font-size:15px;
+    padding:20px 16px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    cursor:pointer;
+    transition:background .2s ease, transform .15s ease, border-color .2s ease;
+  }
+  .add-tile:hover{ background:rgba(124,144,112,0.10); border-color:var(--ink-soft); }
+  .add-tile:active{ transform:scale(0.98); }
+  .add-tile .plus{
+    width:26px;height:26px;border-radius:50%;
+    background:var(--ink);
+    color:var(--paper);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px;line-height:1;
+    flex:none;
+  }
+
+  .empty-state{
+    margin-top:26px;
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:13.5px;
+    padding:20px 10px;
+  }
+
+  .room-group{ margin-top:26px; }
+  .room-title{
+    font-family:'Work Sans', sans-serif;
+    font-weight:600;
+    font-size:12.5px;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    color:var(--ink-soft);
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin:0 2px 12px;
+  }
+  .room-title .count{
+    background:var(--line);
+    color:var(--ink-soft);
+    border-radius:999px;
+    padding:2px 8px;
+    font-size:11px;
+    font-weight:600;
+  }
+
+  .grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+  }
+
+  /* --- Plant card (nursery tag) --- */
+  .card{
+    position:relative;
+    background:var(--card);
+    border-radius:18px;
+    border-left:4px solid transparent;
+    box-shadow:var(--shadow);
+    padding:14px 12px 12px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    animation:pop .35s ease;
+    transition:background .35s ease, border-color .35s ease;
+  }
+  @keyframes pop{
+    from{ opacity:0; transform:translateY(8px) scale(.97); }
+    to{ opacity:1; transform:translateY(0) scale(1); }
+  }
+
+  .card.status-ok{ border-left-color: rgba(124,144,112,0.45); }
+  .card.status-soon{
+    background: linear-gradient(135deg, var(--status-soon-a), var(--status-soon-b));
+    border-left-color: var(--gold);
+  }
+  .card.status-due{
+    background: linear-gradient(135deg, var(--status-due-a), var(--status-due-b));
+    border-left-color: var(--red);
+  }
+
+  .card .punch{
+    position:absolute;
+    top:-7px; left:50%;
+    transform:translateX(-50%);
+    width:14px;height:14px;
+    border-radius:50%;
+    background:var(--paper);
+    border:1.5px solid var(--line);
+  }
+  .edit-hint{
+    position:absolute;
+    top:10px; right:10px;
+    width:24px; height:24px;
+    border-radius:50%;
+    background:rgba(255,255,255,0.85);
+    display:flex; align-items:center; justify-content:center;
+    font-size:11px;
+    color:#2B3626;
+    box-shadow:0 2px 6px rgba(43,54,38,0.10);
+    z-index:2;
+  }
+  .thumb{
+    width:100%;
+    aspect-ratio:1.15/1;
+    border-radius:12px;
+    overflow:hidden;
+    background: linear-gradient(160deg, var(--thumb-grad-a), var(--thumb-grad-b));
+    display:flex;align-items:center;justify-content:center;
+    color:var(--sage);
+  }
+  .thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .thumb svg{ width:34%; opacity:.75; }
+
+  .card h3{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:18px;
+    margin:2px 0 0;
+    color:var(--ink);
+    line-height:1.15;
+  }
+  .meta{
+    font-size:11.5px;
+    letter-spacing:.03em;
+    color:var(--ink-soft);
+    display:flex;
+    flex-wrap:wrap;
+    gap:4px 8px;
+  }
+  .meta span:not(:last-child)::after{ content:"·"; margin-left:8px; color:var(--line); }
+
+  .status{
+    margin-top:2px;
+    display:flex;
+    align-items:center;
+    gap:7px;
+    font-size:12.5px;
+    font-weight:600;
+    padding:7px 10px;
+    border-radius:10px;
+  }
+  .status.ok{ background:rgba(124,144,112,0.16); color:#43552F; }
+  :root[data-theme="dark"] .status.ok{ color:#B7D1A6; }
+  .status.soon{ background:rgba(201,162,75,0.22); color:#7A5E17; }
+  :root[data-theme="dark"] .status.soon{ color:#E6C77D; }
+  .status.due{ background:rgba(178,59,55,0.16); color:var(--red); }
+  .status .dot{ width:7px;height:7px;border-radius:50%; background:currentColor; flex:none; }
+
+  @keyframes waterFlash{
+    0%{ box-shadow:0 0 0 6px rgba(124,144,112,0.35), var(--shadow); }
+    100%{ box-shadow:var(--shadow); }
+  }
+  .card.watered{ animation:waterFlash 1s ease; }
+
+  .water-btn{
+    position:relative;
+    overflow:hidden;
+    margin-top:2px;
+    border:1px solid var(--line);
+    background:var(--paper-deep);
+    border-radius:10px;
+    padding:9px 8px;
+    font-family:'Work Sans', sans-serif;
+    font-size:11.5px;
+    font-weight:600;
+    color:var(--ink);
+    cursor:pointer;
+    user-select:none;
+    -webkit-user-select:none;
+    -webkit-touch-callout:none;
+    touch-action:none;
+    text-align:center;
+  }
+  .water-fill{
+    position:absolute; inset:0;
+    width:0%;
+    background:linear-gradient(90deg, var(--sage), #9FB68C);
+    transition:width 0s linear;
+    z-index:0;
+  }
+  .water-btn.filling .water-fill{
+    width:100%;
+    transition:width 2s linear;
+  }
+  .water-label, .water-confirm{
+    position:relative; z-index:1;
+  }
+  .water-confirm{ display:none; }
+  .card.watered .water-label{ display:none; }
+  .card.watered .water-confirm{ display:inline; }
+  .water-btn.filling .water-label{ color:#1F2A18; }
+
+  @media (max-width:360px){
+    .grid{ grid-template-columns:1fr 1fr; gap:10px; }
+    h1{ font-size:28px; }
+  }
+
+  /* --- Install banner --- */
+  .install-banner{
+    position:fixed;
+    top:0; left:0; right:0;
+    z-index:60;
+    display:flex;
+    justify-content:center;
+    padding:12px;
+    transform:translateY(-120%);
+    transition:transform .35s cubic-bezier(.22,.68,.2,1);
+    pointer-events:none;
+  }
+  .install-banner.show{ transform:translateY(0); pointer-events:auto; }
+  .install-card{
+    width:100%; max-width:420px;
+    background:var(--ink);
+    color:var(--paper);
+    border-radius:16px;
+    box-shadow:0 12px 30px rgba(0,0,0,0.28);
+    padding:13px 14px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+  }
+  .install-card .ic-icon{
+    width:36px; height:36px; border-radius:10px; flex:none;
+    background:linear-gradient(135deg, #5C7A50, #7C9068);
+    display:flex; align-items:center; justify-content:center;
+    font-size:17px;
+  }
+  .install-card .ic-text{ flex:1; min-width:0; }
+  .install-card .ic-text strong{ display:block; font-size:13.5px; font-weight:600; }
+  .install-card .ic-text span{ display:block; font-size:11.5px; opacity:.75; margin-top:1px; }
+  .install-card button{
+    font-family:'Work Sans', sans-serif;
+    border:none; cursor:pointer; flex:none;
+  }
+  .install-btn{
+    background:var(--paper);
+    color:var(--ink);
+    font-weight:600;
+    font-size:12.5px;
+    padding:8px 13px;
+    border-radius:9px;
+  }
+  .install-dismiss{
+    background:transparent;
+    color:var(--paper);
+    opacity:.6;
+    font-size:16px;
+    padding:4px 6px;
+  }
+
+  .notify-toast{
+    position:fixed;
+    left:50%; bottom:24px;
+    transform:translate(-50%, 12px);
+    background:var(--ink);
+    color:var(--paper);
+    font-size:12.5px;
+    font-weight:500;
+    padding:10px 16px;
+    border-radius:12px;
+    box-shadow:0 10px 24px rgba(0,0,0,0.25);
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .25s ease, transform .25s ease;
+    z-index:70;
+    max-width:88%;
+    text-align:center;
+  }
+  .notify-toast.show{ opacity:1; transform:translate(-50%, 0); }
+
+  /* --- Bottom sheets (add/edit, settings, stats) --- */
+  .backdrop{
+    position:fixed; inset:0;
+    background:rgba(24,29,20,0.42);
+    backdrop-filter:blur(2px);
+    opacity:0; pointer-events:none;
+    transition:opacity .25s ease;
+    z-index:40;
+    display:flex; align-items:flex-end; justify-content:center;
+  }
+  .backdrop.open{ opacity:1; pointer-events:auto; }
+
+  .sheet{
+    width:100%; max-width:420px;
+    max-height:92vh;
+    background:var(--paper);
+    border-radius:26px 26px 0 0;
+    box-shadow:0 -12px 40px rgba(0,0,0,0.25);
+    transform:translateY(100%);
+    transition:transform .34s cubic-bezier(.22,.68,.2,1);
+    display:flex; flex-direction:column;
+    overflow:hidden;
+  }
+  .backdrop.open .sheet{ transform:translateY(0); }
+
+  .sheet-head{
+    padding:18px 20px 12px;
+    display:flex; align-items:flex-start; justify-content:space-between;
+    border-bottom:1px solid var(--line);
+    flex:none;
+    position:relative;
+  }
+  .sheet-head .grabber{
+    position:absolute; left:50%; top:8px; transform:translateX(-50%);
+    width:38px; height:4px; border-radius:3px; background:var(--line);
+  }
+  .sheet-head h2{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:24px;
+    margin:6px 0 2px;
+  }
+  .sheet-head p{ margin:0; font-size:12.5px; color:var(--ink-soft); }
+  .close-btn{
+    background:var(--card); border:1px solid var(--line);
+    width:32px; height:32px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; color:var(--ink); font-size:16px; flex:none;
+  }
+
+  .sheet-body{
+    padding:18px 20px 10px;
+    overflow-y:auto;
+  }
+
+  .field{ margin-bottom:18px; position:relative; }
+  .field label{
+    display:flex; align-items:center; gap:5px;
+    font-size:12px; font-weight:600; letter-spacing:.04em;
+    text-transform:uppercase; color:var(--ink-soft);
+    margin-bottom:7px;
+  }
+  .req-dot{ width:5px;height:5px;border-radius:50%; background:var(--clay); display:inline-block; }
+
+  .field input[type="text"], .field input[type="number"]{
+    width:100%;
+    background:transparent;
+    border:none;
+    border-bottom:1.5px solid var(--line);
+    padding:8px 2px;
+    font-family:'Work Sans', sans-serif;
+    font-size:16px;
+    color:var(--ink);
+    outline:none;
+    transition:border-color .2s ease;
+  }
+  .field input:focus{ border-color:var(--sage); }
+  .field .hint{ font-size:11.5px; color:var(--ink-soft); margin-top:5px; }
+
+  .row2{ display:flex; gap:14px; }
+  .row2 .field{ flex:1; }
+
+  .select-field{
+    width:100%;
+    display:flex; align-items:center; justify-content:space-between;
+    background:transparent;
+    border:none;
+    border-bottom:1.5px solid var(--line);
+    padding:9px 2px;
+    font-family:'Work Sans', sans-serif;
+    font-size:15px;
+    color:var(--ink);
+    cursor:pointer;
+    text-align:left;
+  }
+  .select-field.placeholder{ color:var(--ink-soft); }
+  .select-field .chevron{ color:var(--ink-soft); font-size:11px; }
+
+  .suggestions{
+    position:absolute; left:0; right:0; top:100%; margin-top:2px;
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    box-shadow:var(--shadow); max-height:220px; overflow-y:auto;
+    z-index:5; display:none;
+  }
+  .suggestions.show{ display:block; }
+  .suggestion-item{ padding:10px 14px; cursor:pointer; border-bottom:1px solid var(--line); }
+  .suggestion-item:last-child{ border-bottom:none; }
+  .suggestion-item:hover{ background:rgba(124,144,112,0.10); }
+  .suggestion-item .sug-name{ font-size:13.5px; color:var(--ink); }
+  .suggestion-item .sug-meta{ font-size:11px; color:var(--ink-soft); margin-top:1px; }
+
+  .history-section{ margin-top:-4px; margin-bottom:18px; }
+  .history-list{ display:flex; flex-wrap:wrap; gap:7px; margin-top:8px; }
+  .history-pill{ background:var(--paper-deep); border-radius:999px; padding:6px 11px; font-size:11.5px; color:var(--ink-soft); }
+  .history-empty{ font-size:12.5px; color:var(--ink-soft); font-style:italic; margin-top:6px; }
+
+  .img-row{ display:flex; gap:10px; }
+  .img-btn{
+    flex:1;
+    border:1.5px dashed var(--sage);
+    background:transparent;
+    border-radius:12px;
+    padding:12px 8px;
+    font-family:'Work Sans', sans-serif;
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--ink);
+    cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    transition:background .2s ease;
+  }
+  .img-btn:hover{ background:rgba(124,144,112,0.10); }
+  .img-preview{
+    margin-top:12px;
+    width:100%;
+    border-radius:12px;
+    overflow:hidden;
+    position:relative;
+    aspect-ratio:16/10;
+    display:none;
+  }
+  .img-preview.show{ display:block; }
+  .img-preview img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .img-preview button{
+    position:absolute; top:8px; right:8px;
+    width:26px; height:26px; border-radius:50%;
+    background:rgba(24,29,20,0.55); color:#fff; border:none;
+    cursor:pointer; font-size:13px;
+  }
+
+  .sheet-foot{
+    padding:14px 20px 22px;
+    border-top:1px solid var(--line);
+    flex:none;
+    background:var(--paper);
+  }
+  .save-btn{
+    width:100%;
+    border:none;
+    border-radius:14px;
+    padding:15px;
+    font-family:'Work Sans', sans-serif;
+    font-weight:600;
+    font-size:15px;
+    letter-spacing:.01em;
+    background:var(--ink);
+    color:var(--paper);
+    cursor:pointer;
+    transition:opacity .2s ease, transform .15s ease;
+  }
+  .save-btn:disabled{ opacity:.35; cursor:not-allowed; }
+  .save-btn:not(:disabled):active{ transform:scale(0.98); }
+  .save-note{
+    text-align:center; margin:10px 0 0;
+    font-size:11.5px; color:var(--ink-soft);
+  }
+
+  .delete-zone{ margin-top:4px; }
+  .delete-btn{
+    width:100%;
+    background:transparent;
+    border:1px solid rgba(178,59,55,0.35);
+    color:var(--red);
+    border-radius:12px;
+    padding:12px;
+    font-family:'Work Sans', sans-serif;
+    font-weight:600;
+    font-size:13.5px;
+    cursor:pointer;
+    transition:background .2s ease, border-color .2s ease;
+  }
+  .delete-btn:hover{ background:rgba(178,59,55,0.08); }
+  .delete-confirm-row{
+    display:none;
+    align-items:center;
+    justify-content:center;
+    gap:14px;
+    margin-top:10px;
+    font-size:12.5px;
+  }
+  .delete-confirm-row.show{ display:flex; }
+  .confirm-yes{
+    background:var(--red);
+    color:#fff;
+    border:none;
+    border-radius:9px;
+    padding:9px 16px;
+    font-weight:600;
+    font-family:'Work Sans', sans-serif;
+    cursor:pointer;
+  }
+  .confirm-cancel{
+    background:transparent;
+    border:none;
+    color:var(--ink-soft);
+    font-family:'Work Sans', sans-serif;
+    cursor:pointer;
+    text-decoration:underline;
+  }
+
+  /* --- Small popups (soil moisture / sort) layered above a sheet --- */
+  .popup-backdrop{
+    position:fixed; inset:0;
+    background:rgba(24,29,20,0.42);
+    backdrop-filter:blur(2px);
+    opacity:0; pointer-events:none;
+    transition:opacity .2s ease;
+    z-index:90;
+    display:flex; align-items:center; justify-content:center;
+    padding:20px;
+  }
+  .popup-backdrop.open{ opacity:1; pointer-events:auto; }
+  .popup-card{
+    width:100%; max-width:360px;
+    background:var(--paper);
+    border-radius:20px;
+    box-shadow:0 20px 50px rgba(0,0,0,0.35);
+    padding:8px;
+    transform:scale(.95);
+    transition:transform .2s cubic-bezier(.22,.68,.2,1);
+    max-height:80vh;
+    overflow-y:auto;
+  }
+  .popup-backdrop.open .popup-card{ transform:scale(1); }
+  .popup-title{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:16px;
+    padding:12px 14px 6px;
+    margin:0;
+  }
+  .popup-option{
+    display:flex; align-items:center; gap:12px;
+    padding:13px 14px;
+    border-radius:12px;
+    cursor:pointer;
+    font-size:14.5px;
+    color:var(--ink);
+  }
+  .popup-option:hover{ background:rgba(124,144,112,0.10); }
+  .popup-option .radio{
+    width:18px;height:18px;border-radius:50%;
+    border:1.5px solid var(--line);
+    flex:none;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .popup-option.selected .radio{ border-color:var(--sage); }
+  .popup-option.selected .radio::after{
+    content:''; width:10px;height:10px;border-radius:50%; background:var(--sage);
+  }
+  .popup-option .opt-text strong{ display:block; font-size:14px; font-weight:600; }
+  .popup-option .opt-text span{ display:block; font-size:11.5px; color:var(--ink-soft); margin-top:1px; }
+
+  /* --- Settings sheet --- */
+  .settings-section{ margin-bottom:24px; }
+  .settings-section h3{
+    font-size:12px; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--ink-soft); margin:0 0 10px; font-weight:600;
+  }
+  .segmented{
+    display:flex; background:var(--paper-deep); border-radius:12px; padding:3px; gap:3px;
+  }
+  .segmented button{
+    flex:1; border:none; background:transparent; padding:9px 0;
+    border-radius:9px; font-family:'Work Sans', sans-serif; font-size:13px;
+    font-weight:600; color:var(--ink-soft); cursor:pointer;
+    transition:background .15s ease, color .15s ease;
+  }
+  .segmented button.active{
+    background:var(--card); color:var(--ink); box-shadow:0 1px 4px rgba(0,0,0,0.12);
+  }
+  .settings-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .settings-row strong{ display:block; font-size:14.5px; font-weight:600; }
+  .settings-row span{ display:block; font-size:12px; color:var(--ink-soft); margin-top:2px; }
+  .settings-note{ font-size:12px; color:var(--ink-soft); margin:10px 2px 0; line-height:1.5; }
+  .toggle-switch{
+    width:46px; height:27px; border-radius:999px; border:none;
+    background:var(--line); position:relative; cursor:pointer; flex:none;
+    transition:background .2s ease;
+  }
+  .toggle-switch .knob{
+    position:absolute; top:3px; left:3px; width:21px;height:21px; border-radius:50%;
+    background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.25); transition:transform .2s ease;
+  }
+  .toggle-switch.on{ background:var(--sage); }
+  .toggle-switch.on .knob{ transform:translateX(19px); }
+
+  /* --- Stats sheet --- */
+  .stats-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .stat-tile{ background:var(--card); border-radius:16px; padding:18px 14px; box-shadow:var(--shadow); }
+  .stat-tile.wide{ grid-column:1/-1; }
+  .stat-num{ font-family:'Fraunces', serif; font-size:28px; font-weight:600; color:var(--ink); line-height:1.1; }
+  .stat-tile.wide .stat-num{ font-size:17px; }
+  .stat-label{ font-size:12px; color:var(--ink-soft); margin-top:6px; }
+</style>
+</head>
+<body>
+
+<div class="install-banner" id="installBanner">
+  <div class="install-card">
+    <div class="ic-icon">🌱</div>
+    <div class="ic-text">
+      <strong>Add Verdant to your home screen</strong>
+      <span id="installText">Get quick access, like a native app.</span>
+    </div>
+    <button class="install-btn" id="installBtn">Install</button>
+    <button class="install-dismiss" id="installDismiss">✕</button>
+  </div>
+</div>
+
+<div class="phone">
+  <header class="app-head">
+    <div class="head-row">
+      <p class="eyebrow">Verdant</p>
+      <div class="head-actions">
+        <button class="icon-btn" id="statsBtn" title="Statistics">📊</button>
+        <button class="icon-btn" id="moreBtn" title="Settings">⋮</button>
+      </div>
+    </div>
+    <h1>Good morning.<br><em>Someone's</em> thirsty.</h1>
+    <p class="sub">Keep every plant on schedule and get notified before it dries out.</p>
+
+    <div class="toolbar">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" placeholder="Search plants or rooms...">
+      </div>
+      <button class="sort-btn" id="sortBtn">⇅ <span id="sortLabel">Thirstiest first</span></button>
+    </div>
+
+    <div class="filter-chips" id="filterChips">
+      <button class="chip active" data-filter="all">All</button>
+      <button class="chip" data-filter="due">Needs water</button>
+      <button class="chip" data-filter="soon">Soon</button>
+      <button class="chip" data-filter="ok">Healthy</button>
+    </div>
+  </header>
+
+  <div class="add-tile-wrap">
+    <button class="add-tile" id="openAdd">
+      <span class="plus">+</span> Add plant
+    </button>
+  </div>
+
+  <div id="roomGroups"></div>
+  <p class="empty-state" id="emptyState" style="display:none;">No plants match your search or filter.</p>
+</div>
+
+<!-- Add / Edit plant sheet -->
+<div class="backdrop" id="backdrop">
+  <div class="sheet">
+    <div class="sheet-head">
+      <div class="grabber"></div>
+      <div>
+        <h2 id="sheetTitle">New Plant</h2>
+        <p id="sheetDesc">Fill in name, room, watering interval and soil moisture to save.</p>
+      </div>
+      <button class="close-btn" id="closeAdd">✕</button>
+    </div>
+
+    <div class="sheet-body">
+      <div class="field" id="nameFieldWrap">
+        <label><span class="req-dot"></span> Name</label>
+        <input type="text" id="f-navn" placeholder="e.g. Monstera" autocomplete="off">
+        <div class="suggestions" id="suggestions"></div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label><span class="req-dot"></span> Room</label>
+          <input type="text" id="f-rom" placeholder="Living room">
+        </div>
+        <div class="field">
+          <label><span class="req-dot"></span> Water every</label>
+          <input type="number" id="f-intervall" min="1" placeholder="7" inputmode="numeric">
+          <p class="hint">Number of days between waterings</p>
+        </div>
+      </div>
+
+      <div class="field">
+        <label><span class="req-dot"></span> Soil moisture</label>
+        <button type="button" class="select-field placeholder" id="moistureField">
+          <span id="moistureLabel">Choose...</span>
+          <span class="chevron">⌄</span>
+        </button>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>Family <span style="text-transform:none;font-weight:400;">(optional)</span></label>
+          <input type="text" id="f-familie" placeholder="Araceae">
+        </div>
+        <div class="field">
+          <label>Max height <span style="text-transform:none;font-weight:400;">(optional)</span></label>
+          <input type="text" id="f-hoyde" placeholder="e.g. 200 cm">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Photo <span style="text-transform:none;font-weight:400;">(optional)</span></label>
+        <div class="img-row">
+          <button type="button" class="img-btn" id="btnCamera">📷 Take Photo</button>
+          <button type="button" class="img-btn" id="btnGallery">🖼️ From Gallery</button>
+        </div>
+        <input type="file" id="inputCamera" accept="image/*" capture="environment" style="display:none">
+        <input type="file" id="inputGallery" accept="image/*" style="display:none">
+        <div class="img-preview" id="imgPreview">
+          <img id="imgPreviewTag" src="" alt="">
+          <button type="button" id="removeImg">✕</button>
+        </div>
+      </div>
+
+      <div class="history-section" id="historySection" style="display:none;">
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:0;">Watering history</label>
+        <div class="history-list" id="historyList"></div>
+      </div>
+    </div>
+
+    <div class="sheet-foot">
+      <button class="save-btn" id="saveBtn" disabled>Save Plant</button>
+      <p class="save-note">You can always add more details later.</p>
+
+      <div class="delete-zone" id="deleteZone" style="display:none;">
+        <button class="delete-btn" id="deleteBtn">🗑 Delete Plant</button>
+        <div class="delete-confirm-row" id="deleteConfirmRow">
+          <span>Delete this plant permanently?</span>
+          <button class="confirm-yes" id="confirmDeleteYes">Yes, delete</button>
+          <button class="confirm-cancel" id="confirmDeleteCancel">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Soil moisture picker popup -->
+<div class="popup-backdrop" id="moisturePopup">
+  <div class="popup-card">
+    <h3 class="popup-title">Soil moisture</h3>
+    <div id="moistureOptions"></div>
+  </div>
+</div>
+
+<!-- Sort picker popup -->
+<div class="popup-backdrop" id="sortPopup">
+  <div class="popup-card">
+    <h3 class="popup-title">Sort by</h3>
+    <div id="sortOptions"></div>
+  </div>
+</div>
+
+<!-- Settings sheet (appearance + notifications) -->
+<div class="backdrop" id="settingsBackdrop">
+  <div class="sheet">
+    <div class="sheet-head">
+      <div class="grabber"></div>
+      <div>
+        <h2>Settings</h2>
+        <p>Appearance and notifications.</p>
+      </div>
+      <button class="close-btn" id="closeSettings">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div class="settings-section">
+        <h3>Appearance</h3>
+        <div class="segmented" id="themeSegmented">
+          <button type="button" data-theme="light">Light</button>
+          <button type="button" data-theme="dark">Dark</button>
+          <button type="button" data-theme="system">System</button>
+        </div>
+      </div>
+      <div class="settings-section">
+        <h3>Notifications</h3>
+        <div class="settings-row">
+          <div>
+            <strong>Watering reminders</strong>
+            <span id="notifyStatusText">Off</span>
+          </div>
+          <button class="toggle-switch" id="notifyToggle"><span class="knob"></span></button>
+        </div>
+        <p class="settings-note" id="notifyNote">Turn on to get notified when a plant needs water.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Statistics sheet -->
+<div class="backdrop" id="statsBackdrop">
+  <div class="sheet">
+    <div class="sheet-head">
+      <div class="grabber"></div>
+      <div>
+        <h2>Statistics</h2>
+        <p>A look at your plant care over time.</p>
+      </div>
+      <button class="close-btn" id="closeStats">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div class="stats-grid">
+        <div class="stat-tile"><div class="stat-num" id="statTotal">0</div><div class="stat-label">Plants</div></div>
+        <div class="stat-tile"><div class="stat-num" id="statRooms">0</div><div class="stat-label">Rooms</div></div>
+        <div class="stat-tile"><div class="stat-num" id="statMonth">0</div><div class="stat-label">Waterings this month</div></div>
+        <div class="stat-tile"><div class="stat-num" id="statAllTime">0</div><div class="stat-label">Waterings all-time</div></div>
+        <div class="stat-tile wide"><div class="stat-num" id="statAvgInterval">—</div><div class="stat-label">Average days between waterings</div></div>
+        <div class="stat-tile wide"><div class="stat-num" id="statMostWatered">—</div><div class="stat-label">Most watered plant</div></div>
+        <div class="stat-tile wide"><div class="stat-num" id="statAttention">—</div><div class="stat-label">Needs attention most</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="notify-toast" id="notifyToast"></div>
+
+<script>
+/* ============== Plant catalog (200+ common houseplants) ============== */
+const PLANT_CATALOG = [
+{n:"Echeveria Elegans",f:"Crassulaceae",i:14,m:"dry",h:"15-30 cm"},
+{n:"Echeveria Perle von Nürnberg",f:"Crassulaceae",i:14,m:"dry",h:"15-30 cm"},
+{n:"Haworthia Fasciata (Zebra Plant)",f:"Asphodelaceae",i:14,m:"dry",h:"15-30 cm"},
+{n:"Haworthia Cooperi",f:"Asphodelaceae",i:14,m:"dry",h:"15-30 cm"},
+{n:"Sedum Morganianum (Burro's Tail)",f:"Crassulaceae",i:14,m:"dry",h:"15-30 cm"},
+{n:"Crassula Ovata (Jade Plant)",f:"Crassulaceae",i:14,m:"dry",h:"60-150 cm"},
+{n:"Crassula Perforata (String of Buttons)",f:"Crassulaceae",i:14,m:"dry",h:"15-30 cm"},
+{n:"Senecio Rowleyanus (String of Pearls)",f:"Asteraceae",i:14,m:"dry",h:"15-30 cm"},
+{n:"Senecio Peregrinus (String of Dolphins)",f:"Asteraceae",i:14,m:"dry",h:"15-30 cm"},
+{n:"Senecio Radicans (String of Bananas)",f:"Asteraceae",i:14,m:"dry",h:"15-30 cm"},
+{n:"Kalanchoe Blossfeldiana",f:"Crassulaceae",i:14,m:"dry",h:"15-30 cm"},
+{n:"Kalanchoe Tomentosa (Panda Plant)",f:"Crassulaceae",i:14,m:"dry",h:"15-30 cm"},
+{n:"Aloe Vera",f:"Asphodelaceae",i:14,m:"dry",h:"15-30 cm"},
+{n:"Aloe Aristata",f:"Asphodelaceae",i:14,m:"dry",h:"15-30 cm"},
+{n:"Agave Americana",f:"Asparagaceae",i:14,m:"dry",h:"60-150 cm"},
+{n:"Gasteria Bicolor",f:"Asphodelaceae",i:14,m:"dry",h:"15-30 cm"},
+{n:"Graptopetalum Paraguayense (Ghost Plant)",f:"Crassulaceae",i:14,m:"dry",h:"15-30 cm"},
+{n:"Sempervivum Tectorum (Hens and Chicks)",f:"Crassulaceae",i:14,m:"dry",h:"15-30 cm"},
+{n:"Aeonium Arboreum",f:"Crassulaceae",i:14,m:"dry",h:"60-150 cm"},
+{n:"Portulacaria Afra (Elephant Bush)",f:"Didiereaceae",i:14,m:"dry",h:"60-150 cm"},
+{n:"Lithops (Living Stones)",f:"Aizoaceae",i:14,m:"dry",h:"15-30 cm"},
+{n:"Pachyphytum Oviferum (Moonstones)",f:"Crassulaceae",i:14,m:"dry",h:"15-30 cm"},
+{n:"Euphorbia Tirucalli (Pencil Cactus)",f:"Euphorbiaceae",i:14,m:"dry",h:"60-150 cm"},
+{n:"Euphorbia Trigona (African Milk Tree)",f:"Euphorbiaceae",i:14,m:"dry",h:"60-150 cm"},
+{n:"Dischidia Nummularia (String of Nickels)",f:"Apocynaceae",i:14,m:"dry",h:"15-30 cm"},
+{n:"Peperomia Ferreyrae (Happy Bean)",f:"Piperaceae",i:14,m:"dry",h:"15-30 cm"},
+{n:"Zamioculcas Zamiifolia (ZZ Plant)",f:"Araceae",i:14,m:"dry",h:"60-150 cm"},
+{n:"Sansevieria Trifasciata (Snake Plant)",f:"Asparagaceae",i:14,m:"dry",h:"60-150 cm"},
+{n:"Sansevieria Cylindrica",f:"Asparagaceae",i:14,m:"dry",h:"60-150 cm"},
+{n:"Sansevieria Laurentii",f:"Asparagaceae",i:14,m:"dry",h:"60-150 cm"},
+{n:"Beaucarnea Recurvata (Ponytail Palm)",f:"Asparagaceae",i:14,m:"dry",h:"60-150 cm"},
+{n:"Crassula Perfoliata (Propeller Plant)",f:"Crassulaceae",i:14,m:"dry",h:"15-30 cm"},
+{n:"Echeveria Lola",f:"Crassulaceae",i:14,m:"dry",h:"15-30 cm"},
+{n:"Echinocactus Grusonii (Golden Barrel Cactus)",f:"Cactaceae",i:18,m:"dry",h:"15-50 cm"},
+{n:"Mammillaria Elongata (Lady Finger Cactus)",f:"Cactaceae",i:18,m:"dry",h:"15-50 cm"},
+{n:"Opuntia Microdasys (Bunny Ear Cactus)",f:"Cactaceae",i:18,m:"dry",h:"15-50 cm"},
+{n:"Cereus Peruvianus",f:"Cactaceae",i:18,m:"dry",h:"15-50 cm"},
+{n:"Astrophytum Myriostigma (Bishop's Cap)",f:"Cactaceae",i:18,m:"dry",h:"15-50 cm"},
+{n:"Ferocactus (Barrel Cactus)",f:"Cactaceae",i:18,m:"dry",h:"15-50 cm"},
+{n:"Cephalocereus Senilis (Old Man Cactus)",f:"Cactaceae",i:18,m:"dry",h:"15-50 cm"},
+{n:"Gymnocalycium Mihanovichii (Moon Cactus)",f:"Cactaceae",i:18,m:"dry",h:"15-50 cm"},
+{n:"Parodia Magnifica",f:"Cactaceae",i:18,m:"dry",h:"15-50 cm"},
+{n:"Cylindropuntia (Cholla Cactus)",f:"Cactaceae",i:18,m:"dry",h:"15-50 cm"},
+{n:"Schlumbergera (Christmas Cactus)",f:"Cactaceae",i:7,m:"topdry",h:"20-40 cm"},
+{n:"Epiphyllum Oxypetalum (Orchid Cactus)",f:"Cactaceae",i:7,m:"topdry",h:"20-40 cm"},
+{n:"Rhipsalis Baccifera (Mistletoe Cactus)",f:"Cactaceae",i:7,m:"topdry",h:"20-40 cm"},
+{n:"Hatiora Gaertneri (Easter Cactus)",f:"Cactaceae",i:7,m:"topdry",h:"20-40 cm"},
+{n:"Selenicereus (Queen of the Night)",f:"Cactaceae",i:7,m:"topdry",h:"20-40 cm"},
+{n:"Monstera Deliciosa",f:"Araceae",i:7,m:"topdry",h:"150-250 cm"},
+{n:"Monstera Adansonii",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Monstera Thai Constellation",f:"Araceae",i:7,m:"topdry",h:"150-250 cm"},
+{n:"Monstera Peru",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Monstera Dubia",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Philodendron Hederaceum (Heartleaf Philodendron)",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Philodendron Brasil",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Philodendron Birkin",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Philodendron Pink Princess",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Philodendron Selloum (Hope)",f:"Araceae",i:7,m:"topdry",h:"150-250 cm"},
+{n:"Philodendron Xanadu",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Philodendron Micans",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Philodendron Gloriosum",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Philodendron Squamiferum",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Rhaphidophora Tetrasperma (Mini Monstera)",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Epipremnum Aureum (Golden Pothos)",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Epipremnum Aureum 'Marble Queen'",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Epipremnum Aureum 'Neon'",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Epipremnum Aureum 'Jade'",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Epipremnum 'Cebu Blue'",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Epipremnum 'Manjula'",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Scindapsus Pictus (Satin Pothos)",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Scindapsus Treubii",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Syngonium Podophyllum (Arrowhead Plant)",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Syngonium 'Pink Allusion'",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Ficus Lyrata (Fiddle Leaf Fig)",f:"Moraceae",i:7,m:"topdry",h:"150-250 cm"},
+{n:"Ficus Elastica (Rubber Plant)",f:"Moraceae",i:7,m:"topdry",h:"150-250 cm"},
+{n:"Ficus Elastica 'Tineke'",f:"Moraceae",i:7,m:"topdry",h:"150-250 cm"},
+{n:"Ficus Elastica 'Burgundy'",f:"Moraceae",i:7,m:"topdry",h:"150-250 cm"},
+{n:"Ficus Benjamina (Weeping Fig)",f:"Moraceae",i:7,m:"topdry",h:"150-250 cm"},
+{n:"Ficus Audrey",f:"Moraceae",i:7,m:"topdry",h:"150-250 cm"},
+{n:"Ficus Microcarpa (Ginseng Ficus)",f:"Moraceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Ficus Pumila (Creeping Fig)",f:"Moraceae",i:7,m:"topdry",h:"20-40 cm"},
+{n:"Aglaonema Commutatum (Chinese Evergreen)",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Aglaonema 'Silver Bay'",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Aglaonema 'Red'",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Aglaonema 'Maria'",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Dracaena Marginata",f:"Asparagaceae",i:7,m:"topdry",h:"150-250 cm"},
+{n:"Dracaena Fragrans (Corn Plant)",f:"Asparagaceae",i:7,m:"topdry",h:"150-250 cm"},
+{n:"Dracaena 'Compacta'",f:"Asparagaceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Dracaena 'Lemon Lime'",f:"Asparagaceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Dracaena 'Warneckii'",f:"Asparagaceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Dracaena 'Janet Craig'",f:"Asparagaceae",i:7,m:"topdry",h:"150-250 cm"},
+{n:"Pilea Peperomioides (Chinese Money Plant)",f:"Urticaceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Peperomia Obtusifolia",f:"Piperaceae",i:7,m:"topdry",h:"20-40 cm"},
+{n:"Peperomia Rosso",f:"Piperaceae",i:7,m:"topdry",h:"20-40 cm"},
+{n:"Peperomia 'Frost'",f:"Piperaceae",i:7,m:"topdry",h:"20-40 cm"},
+{n:"Peperomia 'Hope'",f:"Piperaceae",i:7,m:"topdry",h:"20-40 cm"},
+{n:"Peperomia Argyreia (Watermelon Peperomia)",f:"Piperaceae",i:7,m:"topdry",h:"20-40 cm"},
+{n:"Peperomia Caperata (Emerald Ripple)",f:"Piperaceae",i:7,m:"topdry",h:"20-40 cm"},
+{n:"Peperomia Polybotrya (Raindrop)",f:"Piperaceae",i:7,m:"topdry",h:"20-40 cm"},
+{n:"Hoya Carnosa",f:"Apocynaceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Hoya Kerrii (Sweetheart Hoya)",f:"Apocynaceae",i:7,m:"topdry",h:"20-40 cm"},
+{n:"Hoya Pubicalyx",f:"Apocynaceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Hoya Linearis",f:"Apocynaceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Schefflera Arboricola (Umbrella Tree)",f:"Araliaceae",i:7,m:"topdry",h:"150-250 cm"},
+{n:"Schefflera Amate",f:"Araliaceae",i:7,m:"topdry",h:"150-250 cm"},
+{n:"Codiaeum Variegatum (Croton)",f:"Euphorbiaceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Cordyline Fruticosa (Ti Plant)",f:"Asparagaceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Begonia Maculata (Polka Dot Begonia)",f:"Begoniaceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Begonia Rex",f:"Begoniaceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Begonia Masoniana (Iron Cross Begonia)",f:"Begoniaceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Coleus Scutellarioides",f:"Lamiaceae",i:7,m:"topdry",h:"20-40 cm"},
+{n:"Tradescantia Zebrina (Wandering Jew)",f:"Commelinaceae",i:7,m:"topdry",h:"20-40 cm"},
+{n:"Tradescantia Pallida (Purple Heart)",f:"Commelinaceae",i:7,m:"topdry",h:"20-40 cm"},
+{n:"Hedera Helix (English Ivy)",f:"Araliaceae",i:7,m:"topdry",h:"20-40 cm"},
+{n:"Cissus Rhombifolia (Grape Ivy)",f:"Vitaceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Plectranthus Verticillatus (Swedish Ivy)",f:"Lamiaceae",i:7,m:"topdry",h:"20-40 cm"},
+{n:"Dieffenbachia Seguine (Dumb Cane)",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Yucca Elephantipes",f:"Asparagaceae",i:7,m:"topdry",h:"150-250 cm"},
+{n:"Fatsia Japonica",f:"Araliaceae",i:7,m:"topdry",h:"150-250 cm"},
+{n:"Fatshedera Lizei",f:"Araliaceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Chlorophytum Comosum (Spider Plant)",f:"Asparagaceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Anthurium Andraeanum",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Anthurium Clarinervium",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Anthurium Crystallinum",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Anthurium Scherzerianum",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Alocasia Amazonica (African Mask Plant)",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Alocasia Polly",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Alocasia Zebrina",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Alocasia Frydek",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Alocasia Macrorrhiza (Giant Taro)",f:"Araceae",i:7,m:"topdry",h:"150-250 cm"},
+{n:"Calathea Orbifolia",f:"Marantaceae",i:4,m:"moist",h:"30-60 cm"},
+{n:"Calathea Medallion",f:"Marantaceae",i:4,m:"moist",h:"30-60 cm"},
+{n:"Calathea Lancifolia (Rattlesnake Plant)",f:"Marantaceae",i:4,m:"moist",h:"30-60 cm"},
+{n:"Calathea Makoyana (Peacock Plant)",f:"Marantaceae",i:4,m:"moist",h:"30-60 cm"},
+{n:"Calathea Zebrina",f:"Marantaceae",i:4,m:"moist",h:"30-60 cm"},
+{n:"Calathea Ornata",f:"Marantaceae",i:4,m:"moist",h:"30-60 cm"},
+{n:"Calathea Roseopicta",f:"Marantaceae",i:4,m:"moist",h:"30-60 cm"},
+{n:"Maranta Leuconeura (Prayer Plant)",f:"Marantaceae",i:4,m:"moist",h:"15-30 cm"},
+{n:"Ctenanthe Setosa",f:"Marantaceae",i:4,m:"moist",h:"30-60 cm"},
+{n:"Ctenanthe Burle-Marxii",f:"Marantaceae",i:4,m:"moist",h:"15-30 cm"},
+{n:"Stromanthe Triostar",f:"Marantaceae",i:4,m:"moist",h:"30-60 cm"},
+{n:"Caladium Bicolor",f:"Araceae",i:4,m:"moist",h:"15-30 cm"},
+{n:"Colocasia Esculenta (Elephant Ear)",f:"Araceae",i:3,m:"wet",h:"30-90 cm"},
+{n:"Spathiphyllum Wallisii (Peace Lily)",f:"Araceae",i:4,m:"moist",h:"30-60 cm"},
+{n:"Spathiphyllum 'Domino'",f:"Araceae",i:4,m:"moist",h:"30-60 cm"},
+{n:"Saintpaulia Ionantha (African Violet)",f:"Gesneriaceae",i:4,m:"moist",h:"15-30 cm"},
+{n:"Cyclamen Persicum",f:"Primulaceae",i:4,m:"moist",h:"15-30 cm"},
+{n:"Rhododendron Simsii (Azalea)",f:"Ericaceae",i:4,m:"moist",h:"30-60 cm"},
+{n:"Gardenia Jasminoides",f:"Rubiaceae",i:4,m:"moist",h:"30-60 cm"},
+{n:"Begonia Semperflorens",f:"Begoniaceae",i:4,m:"moist",h:"15-30 cm"},
+{n:"Fittonia Albivenis (Nerve Plant)",f:"Acanthaceae",i:4,m:"moist",h:"15-30 cm"},
+{n:"Soleirolia Soleirolii (Baby's Tears)",f:"Urticaceae",i:4,m:"moist",h:"15-30 cm"},
+{n:"Nephrolepis Exaltata (Boston Fern)",f:"Nephrolepidaceae",i:4,m:"moist",h:"30-60 cm"},
+{n:"Nephrolepis 'Kimberly Queen'",f:"Nephrolepidaceae",i:4,m:"moist",h:"30-60 cm"},
+{n:"Adiantum Raddianum (Maidenhair Fern)",f:"Pteridaceae",i:4,m:"moist",h:"30-60 cm"},
+{n:"Asplenium Nidus (Bird's Nest Fern)",f:"Aspleniaceae",i:4,m:"moist",h:"30-60 cm"},
+{n:"Pteris Cretica (Table Fern)",f:"Pteridaceae",i:4,m:"moist",h:"30-60 cm"},
+{n:"Davallia Fejeensis (Rabbit's Foot Fern)",f:"Davalliaceae",i:4,m:"moist",h:"30-60 cm"},
+{n:"Platycerium Bifurcatum (Staghorn Fern)",f:"Polypodiaceae",i:4,m:"moist",h:"30-60 cm"},
+{n:"Cyrtomium Falcatum (Holly Fern)",f:"Dryopteridaceae",i:4,m:"moist",h:"30-60 cm"},
+{n:"Asparagus Setaceus (Asparagus Fern)",f:"Asparagaceae",i:4,m:"moist",h:"30-60 cm"},
+{n:"Phlebodium Aureum (Blue Star Fern)",f:"Polypodiaceae",i:4,m:"moist",h:"30-60 cm"},
+{n:"Cyperus Alternifolius (Umbrella Plant)",f:"Cyperaceae",i:3,m:"wet",h:"30-90 cm"},
+{n:"Cyperus Papyrus (Papyrus)",f:"Cyperaceae",i:3,m:"wet",h:"30-90 cm"},
+{n:"Acorus Gramineus (Japanese Sweet Flag)",f:"Acoraceae",i:3,m:"wet",h:"30-90 cm"},
+{n:"Dracaena Sanderiana (Lucky Bamboo)",f:"Asparagaceae",i:3,m:"wet",h:"30-90 cm"},
+{n:"Dionaea Muscipula (Venus Flytrap)",f:"Droseraceae",i:3,m:"wet",h:"10-25 cm"},
+{n:"Sarracenia (Pitcher Plant)",f:"Sarraceniaceae",i:3,m:"wet",h:"10-25 cm"},
+{n:"Drosera Capensis (Sundew)",f:"Droseraceae",i:3,m:"wet",h:"10-25 cm"},
+{n:"Tillandsia Ionantha (Air Plant)",f:"Bromeliaceae",i:7,m:"dry",h:"10-25 cm"},
+{n:"Tillandsia Xerographica",f:"Bromeliaceae",i:7,m:"dry",h:"10-25 cm"},
+{n:"Guzmania Lingulata (Bromeliad)",f:"Bromeliaceae",i:4,m:"moist",h:"15-30 cm"},
+{n:"Vriesea Splendens (Bromeliad)",f:"Bromeliaceae",i:4,m:"moist",h:"15-30 cm"},
+{n:"Dypsis Lutescens (Areca Palm)",f:"Arecaceae",i:7,m:"topdry",h:"100-200 cm"},
+{n:"Chamaedorea Elegans (Parlor Palm)",f:"Arecaceae",i:7,m:"topdry",h:"100-200 cm"},
+{n:"Ravenea Rivularis (Majesty Palm)",f:"Arecaceae",i:7,m:"topdry",h:"100-200 cm"},
+{n:"Howea Forsteriana (Kentia Palm)",f:"Arecaceae",i:7,m:"topdry",h:"100-200 cm"},
+{n:"Chamaedorea Seifrizii (Bamboo Palm)",f:"Arecaceae",i:7,m:"topdry",h:"100-200 cm"},
+{n:"Rhapis Excelsa (Lady Palm)",f:"Arecaceae",i:7,m:"topdry",h:"100-200 cm"},
+{n:"Chamaedorea Cataractarum (Cat Palm)",f:"Arecaceae",i:7,m:"topdry",h:"100-200 cm"},
+{n:"Caryota Mitis (Fishtail Palm)",f:"Arecaceae",i:7,m:"topdry",h:"100-200 cm"},
+{n:"Cycas Revoluta (Sago Palm)",f:"Cycadaceae",i:14,m:"dry",h:"60-150 cm"},
+{n:"Phoenix Roebelenii (Pygmy Date Palm)",f:"Arecaceae",i:7,m:"topdry",h:"100-200 cm"},
+{n:"Livistona Chinensis (Chinese Fan Palm)",f:"Arecaceae",i:7,m:"topdry",h:"100-200 cm"},
+{n:"Phalaenopsis (Moth Orchid)",f:"Orchidaceae",i:7,m:"topdry",h:"30-60 cm"},
+{n:"Dendrobium Orchid",f:"Orchidaceae",i:7,m:"topdry",h:"30-60 cm"},
+{n:"Oncidium Orchid",f:"Orchidaceae",i:7,m:"topdry",h:"30-60 cm"},
+{n:"Cattleya Orchid",f:"Orchidaceae",i:7,m:"topdry",h:"30-60 cm"},
+{n:"Paphiopedilum (Lady Slipper Orchid)",f:"Orchidaceae",i:7,m:"topdry",h:"30-60 cm"},
+{n:"Hibiscus Rosa-Sinensis",f:"Malvaceae",i:5,m:"topdry",h:"30-60 cm"},
+{n:"Pelargonium (Geranium)",f:"Geraniaceae",i:5,m:"topdry",h:"30-60 cm"},
+{n:"Lavandula (Lavender)",f:"Lamiaceae",i:10,m:"dry",h:"20-40 cm"},
+{n:"Rosmarinus Officinalis (Rosemary)",f:"Lamiaceae",i:10,m:"dry",h:"20-40 cm"},
+{n:"Ocimum Basilicum (Basil)",f:"Lamiaceae",i:3,m:"moist",h:"20-40 cm"},
+{n:"Mentha (Mint)",f:"Lamiaceae",i:3,m:"moist",h:"20-40 cm"},
+{n:"Thymus Vulgaris (Thyme)",f:"Lamiaceae",i:10,m:"dry",h:"20-40 cm"},
+{n:"Citrus Limon (Lemon Tree)",f:"Rutaceae",i:7,m:"topdry",h:"150-250 cm"},
+{n:"Citrus Japonica (Calamondin Orange)",f:"Rutaceae",i:7,m:"topdry",h:"150-250 cm"},
+{n:"Olea Europaea (Olive Tree)",f:"Oleaceae",i:10,m:"dry",h:"150-250 cm"},
+{n:"Ficus Carica (Fig Tree)",f:"Moraceae",i:7,m:"topdry",h:"150-250 cm"},
+{n:"Persea Americana (Avocado Plant)",f:"Lauraceae",i:7,m:"topdry",h:"150-250 cm"},
+{n:"Coffea Arabica (Coffee Plant)",f:"Rubiaceae",i:4,m:"moist",h:"30-60 cm"},
+{n:"Jasminum Polyanthum (Jasmine)",f:"Oleaceae",i:4,m:"moist",h:"30-60 cm"},
+{n:"Camellia Japonica",f:"Theaceae",i:4,m:"moist",h:"30-60 cm"},
+{n:"Euphorbia Pulcherrima (Poinsettia)",f:"Euphorbiaceae",i:5,m:"topdry",h:"30-60 cm"},
+{n:"Hydrangea Macrophylla",f:"Hydrangeaceae",i:3,m:"wet",h:"30-90 cm"},
+{n:"Rosa Chinensis (Miniature Rose)",f:"Rosaceae",i:4,m:"moist",h:"30-60 cm"},
+{n:"Bougainvillea Glabra",f:"Nyctaginaceae",i:10,m:"dry",h:"20-40 cm"},
+{n:"Strelitzia Reginae (Bird of Paradise)",f:"Strelitziaceae",i:7,m:"topdry",h:"150-250 cm"},
+{n:"Musa (Banana Plant)",f:"Musaceae",i:4,m:"moist",h:"30-60 cm"},
+{n:"Ravenala Madagascariensis (Traveler's Palm)",f:"Strelitziaceae",i:7,m:"topdry",h:"150-250 cm"},
+{n:"Araucaria Heterophylla (Norfolk Island Pine)",f:"Araucariaceae",i:7,m:"topdry",h:"150-250 cm"},
+{n:"Pachira Aquatica (Money Tree)",f:"Malvaceae",i:7,m:"topdry",h:"150-250 cm"},
+{n:"Pilea Involucrata (Friendship Plant)",f:"Urticaceae",i:4,m:"moist",h:"15-30 cm"},
+{n:"Oxalis Triangularis (Purple Shamrock)",f:"Oxalidaceae",i:7,m:"topdry",h:"20-40 cm"},
+{n:"Aspidistra Elatior (Cast Iron Plant)",f:"Asparagaceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Peperomia Prostrata (String of Turtles)",f:"Piperaceae",i:14,m:"dry",h:"15-30 cm"},
+{n:"Dischidia Ruscifolia (Million Hearts)",f:"Apocynaceae",i:7,m:"topdry",h:"20-40 cm"},
+{n:"Hoya Obovata",f:"Apocynaceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Hoya Australis",f:"Apocynaceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Peperomia Verticillata",f:"Piperaceae",i:7,m:"topdry",h:"20-40 cm"},
+{n:"Philodendron Verrucosum",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Philodendron Mccolley's Finale",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Anthurium Veitchii (King Anthurium)",f:"Araceae",i:7,m:"topdry",h:"150-250 cm"},
+{n:"Alocasia Cuprea",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"},
+{n:"Alocasia Reginula (Black Velvet)",f:"Araceae",i:7,m:"topdry",h:"20-40 cm"},
+{n:"Homalomena Rubescens",f:"Araceae",i:7,m:"topdry",h:"60-150 cm"}
+];
+
+const MOISTURE_OPTIONS = [
+  { value:'dry',    label:'Let dry out completely', hint:'Cacti, succulents' },
+  { value:'topdry', label:'Let top 2–3 cm dry',      hint:'Most houseplants' },
+  { value:'moist',  label:'Keep evenly moist',       hint:'Ferns, calathea' },
+  { value:'wet',    label:'Keep constantly wet',     hint:'Umbrella plant, papyrus' }
+];
+const MOISTURE_SHORT = { dry:'Dry soil', topdry:'Top dry', moist:'Moist soil', wet:'Wet soil' };
+function moistureLabelFor(v){ const m = MOISTURE_OPTIONS.find(o=>o.value===v); return m ? m.label : ''; }
+
+const SORT_OPTIONS = [
+  { value:'thirsty', label:'Thirstiest first',  hint:'Plants that need water soonest' },
+  { value:'name',    label:'Name A–Z',          hint:'' },
+  { value:'recent',  label:'Recently added',    hint:'Newest plants first' }
+];
+function sortLabelFor(v){ const s = SORT_OPTIONS.find(o=>o.value===v); return s ? s.label : ''; }
+
+/* ============== Native Android reminders (inside the APK) ============== */
+// The Android wrapper exposes window.AndroidNotify. It stores the list below and
+// shows a daily reminder (08:00) even when the app is closed - no server needed.
+function localDateISO(d){
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function dueDateISO(p){
+  const d = new Date(p.lastWatered);
+  d.setHours(0,0,0,0);
+  d.setDate(d.getDate() + p.intervall);
+  return localDateISO(d);
+}
+function nativeNotifyOn(){
+  try{
+    return !!window.AndroidNotify
+      && localStorage.getItem('vanning-notify-enabled') === '1'
+      && window.AndroidNotify.hasPermission();
+  }catch(e){ return false; }
+}
+function syncNative(){
+  if(!window.AndroidNotify) return;
+  try{
+    const on = nativeNotifyOn();
+    const list = on ? plants.map(p => ({
+      name: p.name, room: p.room,
+      moisture: (MOISTURE_SHORT[p.soilMoisture] || ''),
+      due: dueDateISO(p)
+    })) : [];
+    window.AndroidNotify.sync(JSON.stringify(list), on);
+  }catch(e){ console.error('Native sync failed', e); }
+}
+
+/* ============== Backend push service ============== */
+const BACKEND_URL = ''; // TODO: set your deployed backend URL here (see server/README.md)
+const VAPID_PUBLIC_KEY = 'BKZR-Won1P0cdKiiHcxugSMMUBKeFyiijy4XxTTgSDAL--nZqKlMUpCb3KBCXzf1L9GlV2l325cVGb_LNbKp2r8';
+
+function getDeviceId(){
+  let id = localStorage.getItem('vanning-device-id');
+  if(!id){
+    id = (crypto.randomUUID ? crypto.randomUUID() : 'dev-' + Date.now() + '-' + Math.random().toString(16).slice(2));
+    localStorage.setItem('vanning-device-id', id);
+  }
+  return id;
+}
+const deviceId = getDeviceId();
+function backendConfigured(){ return !!BACKEND_URL; }
+
+async function syncPlantsToServer(){
+  if(!backendConfigured()) return;
+  try{
+    await fetch(BACKEND_URL + '/api/plants', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deviceId, plants })
+    });
+  }catch(e){ /* fail silently — app still works locally */ }
+}
+
+/* ============== Images: IndexedDB ============== */
+const IMG_DB_NAME = 'vanning-images';
+const IMG_STORE = 'images';
+let imgDBPromise = null;
+
+function openImageDB(){
+  if(imgDBPromise) return imgDBPromise;
+  imgDBPromise = new Promise((resolve, reject) => {
+    if(!('indexedDB' in window)){ reject(new Error('IndexedDB not supported')); return; }
+    const req = indexedDB.open(IMG_DB_NAME, 1);
+    req.onupgradeneeded = () => { req.result.createObjectStore(IMG_STORE); };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  return imgDBPromise;
+}
+async function saveImage(id, dataUrl){
+  try{
+    const db = await openImageDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(IMG_STORE, 'readwrite');
+      tx.objectStore(IMG_STORE).put(dataUrl, id);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+    });
+  }catch(e){ return false; }
+}
+async function loadImage(id){
+  try{
+    const db = await openImageDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(IMG_STORE, 'readonly');
+      const req = tx.objectStore(IMG_STORE).get(id);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+  }catch(e){ return null; }
+}
+async function deleteImage(id){
+  try{
+    const db = await openImageDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(IMG_STORE, 'readwrite');
+      tx.objectStore(IMG_STORE).delete(id);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+    });
+  }catch(e){ return false; }
+}
+
+/* ============== Plant data ============== */
+const STORAGE_KEY = 'vanning-plants';
+
+function loadPlants(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }catch(e){ return []; }
+}
+function savePlants(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(plants));
+  }catch(e){
+    console.error('Save failed', e);
+    if(typeof showToast === 'function'){
+      showToast('Storage is full. Try deleting an old plant and try again.');
+    }
+  }
+  syncPlantsToServer();
+  syncNative();
+}
+
+async function migrateOldImagesToIndexedDB(){
+  let changed = false;
+  for(const p of plants){
+    if(p.bilde){
+      await saveImage(p.id, p.bilde);
+      delete p.bilde;
+      p.hasImage = true;
+      changed = true;
+    }
+  }
+  if(changed){ savePlants(); render(); }
+}
+
+function migratePlantsSchema(){
+  let changed = false;
+  plants.forEach(p => {
+    if(!p.soilMoisture){ p.soilMoisture = 'topdry'; changed = true; }
+    if('mengde' in p){ delete p.mengde; changed = true; }
+    if(!Array.isArray(p.history)){
+      p.history = p.lastWatered ? [p.lastWatered.slice(0,10)] : [];
+      changed = true;
+    }
+  });
+  if(changed) savePlants();
+}
+
+const plants = loadPlants();
+migratePlantsSchema();
+let idCounter = plants.reduce((max, p) => Math.max(max, p.id || 0), 0);
+let editingId = null;
+let deleteConfirming = false;
+let selectedMoisture = null;
+
+const grid = document.getElementById('roomGroups');
+const emptyState = document.getElementById('emptyState');
+const backdrop = document.getElementById('backdrop');
+const openAdd = document.getElementById('openAdd');
+const closeAdd = document.getElementById('closeAdd');
+const saveBtn = document.getElementById('saveBtn');
+const sheetTitle = document.getElementById('sheetTitle');
+const sheetDesc = document.getElementById('sheetDesc');
+const deleteZone = document.getElementById('deleteZone');
+const deleteBtn = document.getElementById('deleteBtn');
+const deleteConfirmRow = document.getElementById('deleteConfirmRow');
+const historySection = document.getElementById('historySection');
+const historyList = document.getElementById('historyList');
+
+const fNavn = document.getElementById('f-navn');
+const fRom = document.getElementById('f-rom');
+const fIntervall = document.getElementById('f-intervall');
+const fFamilie = document.getElementById('f-familie');
+const fHoyde = document.getElementById('f-hoyde');
+const moistureField = document.getElementById('moistureField');
+const moistureLabel = document.getElementById('moistureLabel');
+const suggestionsEl = document.getElementById('suggestions');
+
+let currentImage = null;
+let imageChanged = false;
+
+/* ============== Search / filter / sort state ============== */
+let searchQuery = '';
+let statusFilter = 'all';
+let sortMode = localStorage.getItem('verdant-sort') || 'thirsty';
+document.getElementById('sortLabel').textContent = sortLabelFor(sortMode);
+
+document.getElementById('searchInput').addEventListener('input', (e) => {
+  searchQuery = e.target.value.trim().toLowerCase();
+  render();
+});
+
+document.getElementById('filterChips').addEventListener('click', (e) => {
+  const chip = e.target.closest('.chip');
+  if(!chip) return;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  statusFilter = chip.dataset.filter;
+  render();
+});
+
+/* ============== Generic popup helpers ============== */
+function openPopup(el){ el.classList.add('open'); }
+function closePopup(el){ el.classList.remove('open'); }
+
+/* ---- Sort popup ---- */
+const sortPopup = document.getElementById('sortPopup');
+const sortOptionsEl = document.getElementById('sortOptions');
+function renderSortOptions(){
+  sortOptionsEl.innerHTML = SORT_OPTIONS.map(o => `
+    <div class="popup-option ${o.value===sortMode?'selected':''}" data-value="${o.value}">
+      <span class="radio"></span>
+      <span class="opt-text"><strong>${o.label}</strong>${o.hint ? `<span>${o.hint}</span>` : ''}</span>
+    </div>
+  `).join('');
+}
+document.getElementById('sortBtn').addEventListener('click', () => {
+  renderSortOptions();
+  openPopup(sortPopup);
+});
+sortPopup.addEventListener('click', (e) => {
+  if(e.target === sortPopup){ closePopup(sortPopup); return; }
+  const opt = e.target.closest('.popup-option');
+  if(!opt) return;
+  sortMode = opt.dataset.value;
+  localStorage.setItem('verdant-sort', sortMode);
+  document.getElementById('sortLabel').textContent = sortLabelFor(sortMode);
+  closePopup(sortPopup);
+  render();
+});
+
+/* ---- Soil moisture popup ---- */
+const moisturePopup = document.getElementById('moisturePopup');
+const moistureOptionsEl = document.getElementById('moistureOptions');
+function renderMoistureOptions(){
+  moistureOptionsEl.innerHTML = MOISTURE_OPTIONS.map(o => `
+    <div class="popup-option ${o.value===selectedMoisture?'selected':''}" data-value="${o.value}">
+      <span class="radio"></span>
+      <span class="opt-text"><strong>${o.label}</strong><span>${o.hint}</span></span>
+    </div>
+  `).join('');
+}
+function updateMoistureFieldUI(){
+  if(selectedMoisture){
+    moistureLabel.textContent = moistureLabelFor(selectedMoisture);
+    moistureField.classList.remove('placeholder');
+  } else {
+    moistureLabel.textContent = 'Choose...';
+    moistureField.classList.add('placeholder');
+  }
+}
+moistureField.addEventListener('click', () => {
+  renderMoistureOptions();
+  openPopup(moisturePopup);
+});
+moisturePopup.addEventListener('click', (e) => {
+  if(e.target === moisturePopup){ closePopup(moisturePopup); return; }
+  const opt = e.target.closest('.popup-option');
+  if(!opt) return;
+  selectedMoisture = opt.dataset.value;
+  updateMoistureFieldUI();
+  closePopup(moisturePopup);
+  checkValid();
+});
+
+/* ============== Theme ============== */
+function getStoredThemePref(){ return localStorage.getItem('verdant-theme') || 'system'; }
+function resolveTheme(pref){
+  return pref === 'system'
+    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+    : pref;
+}
+function updateThemeSegmentedUI(pref){
+  document.querySelectorAll('#themeSegmented button').forEach(b => {
+    b.classList.toggle('active', b.dataset.theme === pref);
+  });
+}
+function applyTheme(pref){
+  document.documentElement.setAttribute('data-theme', resolveTheme(pref));
+  localStorage.setItem('verdant-theme', pref);
+  updateThemeSegmentedUI(pref);
+}
+if(window.matchMedia){
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if(getStoredThemePref() === 'system'){
+      document.documentElement.setAttribute('data-theme', resolveTheme('system'));
+    }
+  });
+}
+updateThemeSegmentedUI(getStoredThemePref());
+document.querySelectorAll('#themeSegmented button').forEach(b => {
+  b.addEventListener('click', () => applyTheme(b.dataset.theme));
+});
+
+/* ============== Settings sheet (appearance + notifications) ============== */
+const settingsBackdrop = document.getElementById('settingsBackdrop');
+document.getElementById('moreBtn').addEventListener('click', () => {
+  updateNotifyToggleUI();
+  openSheetGeneric(settingsBackdrop);
+});
+document.getElementById('closeSettings').addEventListener('click', () => closeSheetGeneric(settingsBackdrop));
+settingsBackdrop.addEventListener('click', (e) => { if(e.target === settingsBackdrop) closeSheetGeneric(settingsBackdrop); });
+
+function openSheetGeneric(el){ el.classList.add('open'); document.body.style.overflow = 'hidden'; }
+function closeSheetGeneric(el){ el.classList.remove('open'); document.body.style.overflow = ''; }
+
+/* ============== Statistics sheet ============== */
+const statsBackdrop = document.getElementById('statsBackdrop');
+document.getElementById('statsBtn').addEventListener('click', () => {
+  renderStats();
+  openSheetGeneric(statsBackdrop);
+});
+document.getElementById('closeStats').addEventListener('click', () => closeSheetGeneric(statsBackdrop));
+statsBackdrop.addEventListener('click', (e) => { if(e.target === statsBackdrop) closeSheetGeneric(statsBackdrop); });
+
+function renderStats(){
+  const total = plants.length;
+  const rooms = new Set(plants.map(p => p.room.toLowerCase())).size;
+  const now = new Date();
+  const ym = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+  let monthCount = 0, allTimeCount = 0;
+  let mostWatered = null, mostWateredCount = -1;
+  let mostOverdue = null, mostOverdueDays = -Infinity;
+  let intervalSum = 0;
+
+  plants.forEach(p => {
+    const hist = Array.isArray(p.history) ? p.history : [];
+    allTimeCount += hist.length;
+    monthCount += hist.filter(d => d.slice(0,7) === ym).length;
+    if(hist.length > mostWateredCount){ mostWateredCount = hist.length; mostWatered = p; }
+    const overdueBy = -daysLeftFor(p);
+    if(overdueBy > mostOverdueDays){ mostOverdueDays = overdueBy; mostOverdue = p; }
+    intervalSum += p.intervall;
+  });
+
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statRooms').textContent = rooms;
+  document.getElementById('statMonth').textContent = monthCount;
+  document.getElementById('statAllTime').textContent = allTimeCount;
+  document.getElementById('statAvgInterval').textContent = total ? Math.round(intervalSum/total) + ' days' : '—';
+  document.getElementById('statMostWatered').textContent = (mostWatered && mostWateredCount > 0)
+    ? `${mostWatered.name} (${mostWateredCount}×)` : '—';
+
+  const attentionEl = document.getElementById('statAttention');
+  if(mostOverdue && mostOverdueDays > 0){
+    attentionEl.textContent = `${mostOverdue.name} — overdue ${mostOverdueDays} day${mostOverdueDays===1?'':'s'}`;
+  } else if(total > 0){
+    attentionEl.textContent = 'All plants are on schedule 🌿';
+  } else {
+    attentionEl.textContent = '—';
+  }
+}
+
+/* ============== Add / edit sheet ============== */
+function resetDeleteConfirm(){
+  deleteConfirming = false;
+  deleteBtn.style.display = '';
+  deleteConfirmRow.classList.remove('show');
+}
+
+function openSheet(){
+  backdrop.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeSheet(){
+  backdrop.classList.remove('open');
+  document.body.style.overflow = '';
+  resetForm();
+}
+function resetForm(){
+  fNavn.value = ''; fRom.value = ''; fIntervall.value = '';
+  fFamilie.value = ''; fHoyde.value = '';
+  currentImage = null;
+  imageChanged = false;
+  selectedMoisture = null;
+  updateMoistureFieldUI();
+  editingId = null;
+  resetDeleteConfirm();
+  hideSuggestions();
+  document.getElementById('imgPreview').classList.remove('show');
+  saveBtn.disabled = true;
+}
+
+function renderHistory(p){
+  const hist = Array.isArray(p.history) ? p.history : [];
+  if(!hist.length){
+    historyList.innerHTML = '<div class="history-empty">No waterings logged yet.</div>';
+    return;
+  }
+  historyList.innerHTML = hist.map(d => {
+    const date = new Date(d + 'T00:00:00');
+    const label = date.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+    return `<span class="history-pill">${label}</span>`;
+  }).join('');
+}
+
+function fillForm(p){
+  fNavn.value = p.name; fRom.value = p.room; fIntervall.value = p.intervall;
+  fFamilie.value = p.family; fHoyde.value = p.maxHeight;
+  selectedMoisture = p.soilMoisture || null;
+  updateMoistureFieldUI();
+  currentImage = null;
+  imageChanged = false;
+  const preview = document.getElementById('imgPreview');
+  preview.classList.remove('show');
+  if(p.hasImage){
+    loadImage(p.id).then(dataUrl => {
+      if(dataUrl && !imageChanged){
+        currentImage = dataUrl;
+        document.getElementById('imgPreviewTag').src = dataUrl;
+        preview.classList.add('show');
+      }
+    });
+  }
+  renderHistory(p);
+  checkValid();
+}
+
+function openForAdd(){
+  resetForm();
+  sheetTitle.textContent = 'New Plant';
+  sheetDesc.textContent = 'Fill in name, room, watering interval and soil moisture to save.';
+  saveBtn.textContent = 'Save Plant';
+  deleteZone.style.display = 'none';
+  historySection.style.display = 'none';
+  openSheet();
+}
+
+function openForEdit(plant){
+  editingId = plant.id;
+  fillForm(plant);
+  resetDeleteConfirm();
+  sheetTitle.textContent = 'Edit Plant';
+  sheetDesc.textContent = 'Update the details and save your changes.';
+  saveBtn.textContent = 'Save Changes';
+  deleteZone.style.display = 'block';
+  historySection.style.display = 'block';
+  openSheet();
+}
+
+openAdd.addEventListener('click', openForAdd);
+closeAdd.addEventListener('click', closeSheet);
+backdrop.addEventListener('click', (e) => { if(e.target === backdrop) closeSheet(); });
+
+/* ============== Name field: auto-capitalize + catalog suggestions ============== */
+function capitalizeField(input){
+  input.addEventListener('input', () => {
+    const start = input.selectionStart, end = input.selectionEnd;
+    if(input.value.length > 0){
+      input.value = input.value.charAt(0).toUpperCase() + input.value.slice(1);
+    }
+    input.setSelectionRange(start, end);
+    checkValid();
+  });
+}
+[fRom, fFamilie, fHoyde].forEach(capitalizeField);
+fIntervall.addEventListener('input', checkValid);
+
+function hideSuggestions(){
+  suggestionsEl.classList.remove('show');
+  suggestionsEl.innerHTML = '';
+  suggestionsEl.__matches = null;
+}
+function updateSuggestions(){
+  const q = fNavn.value.trim().toLowerCase();
+  if(q.length < 2){ hideSuggestions(); return; }
+  const matches = PLANT_CATALOG.filter(p => p.n.toLowerCase().includes(q)).slice(0, 6);
+  if(!matches.length){ hideSuggestions(); return; }
+  suggestionsEl.innerHTML = matches.map((p, i) => `
+    <div class="suggestion-item" data-idx="${i}">
+      <div class="sug-name">${p.n}</div>
+      <div class="sug-meta">${p.f} · every ${p.i}d · ${MOISTURE_SHORT[p.m]}</div>
+    </div>
+  `).join('');
+  suggestionsEl.__matches = matches;
+  suggestionsEl.classList.add('show');
+}
+fNavn.addEventListener('input', () => {
+  const start = fNavn.selectionStart, end = fNavn.selectionEnd;
+  if(fNavn.value.length > 0){
+    fNavn.value = fNavn.value.charAt(0).toUpperCase() + fNavn.value.slice(1);
+  }
+  fNavn.setSelectionRange(start, end);
+  updateSuggestions();
+  checkValid();
+});
+fNavn.addEventListener('blur', () => { setTimeout(hideSuggestions, 150); });
+suggestionsEl.addEventListener('mousedown', (e) => {
+  // mousedown (not click) so it fires before the input's blur
+  const item = e.target.closest('.suggestion-item');
+  if(!item || !suggestionsEl.__matches) return;
+  const p = suggestionsEl.__matches[Number(item.dataset.idx)];
+  if(!p) return;
+  fNavn.value = p.n;
+  if(!fFamilie.value.trim()) fFamilie.value = p.f;
+  if(!fHoyde.value.trim()) fHoyde.value = p.h;
+  if(!fIntervall.value.trim()) fIntervall.value = p.i;
+  if(!selectedMoisture){ selectedMoisture = p.m; updateMoistureFieldUI(); }
+  hideSuggestions();
+  checkValid();
+});
+
+function checkValid(){
+  const ok = fNavn.value.trim() && fRom.value.trim() && fIntervall.value.trim() && selectedMoisture;
+  saveBtn.disabled = !ok;
+}
+
+/* ============== Delete plant ============== */
+deleteBtn.addEventListener('click', () => {
+  deleteConfirming = true;
+  deleteBtn.style.display = 'none';
+  deleteConfirmRow.classList.add('show');
+});
+document.getElementById('confirmDeleteCancel').addEventListener('click', resetDeleteConfirm);
+document.getElementById('confirmDeleteYes').addEventListener('click', async () => {
+  if(editingId === null) return;
+  const idx = plants.findIndex(p => p.id === editingId);
+  if(idx !== -1) plants.splice(idx, 1);
+  await deleteImage(editingId);
+  savePlants();
+  render();
+  closeSheet();
+});
+
+/* ============== Image: camera / gallery ============== */
+const inputCamera = document.getElementById('inputCamera');
+const inputGallery = document.getElementById('inputGallery');
+document.getElementById('btnCamera').addEventListener('click', () => inputCamera.click());
+document.getElementById('btnGallery').addEventListener('click', () => inputGallery.click());
+
+function handleImage(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    currentImage = e.target.result;
+    imageChanged = true;
+    document.getElementById('imgPreviewTag').src = currentImage;
+    document.getElementById('imgPreview').classList.add('show');
+  };
+  reader.readAsDataURL(file);
+}
+inputCamera.addEventListener('change', (e) => handleImage(e.target.files[0]));
+inputGallery.addEventListener('change', (e) => handleImage(e.target.files[0]));
+document.getElementById('removeImg').addEventListener('click', () => {
+  currentImage = null;
+  imageChanged = true;
+  document.getElementById('imgPreview').classList.remove('show');
+});
+
+/* ============== Rendering ============== */
+const leafSVG = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M12 2C7 2 3 6 3 12c0 5 4 9 9 9 5-9 5-14 0-19z" stroke="currentColor" stroke-width="1.4"/>
+  <path d="M12 21V9" stroke="currentColor" stroke-width="1.4"/>
+</svg>`;
+
+function statusFor(daysLeft){
+  if(daysLeft <= 0) return {cls:'due', text: daysLeft < 0 ? `Overdue ${Math.abs(daysLeft)} day${Math.abs(daysLeft)===1?'':'s'}` : 'Water today'};
+  if(daysLeft <= 2) return {cls:'soon', text:`Water in ${daysLeft} day${daysLeft===1?'':'s'}`};
+  return {cls:'ok', text:`Water in ${daysLeft} days`};
+}
+
+function daysLeftFor(p){
+  const msPerDay = 86400000;
+  const last = new Date(p.lastWatered);
+  last.setHours(0,0,0,0);
+  const now = new Date();
+  now.setHours(0,0,0,0);
+  const diffDays = Math.round((now - last) / msPerDay);
+  return p.intervall - diffDays;
+}
+
+function matchesSearch(p){
+  if(!searchQuery) return true;
+  return p.name.toLowerCase().includes(searchQuery) || p.room.toLowerCase().includes(searchQuery);
+}
+function matchesFilter(p){
+  if(statusFilter === 'all') return true;
+  return statusFor(daysLeftFor(p)).cls === statusFilter;
+}
+function sortPlantList(list){
+  const arr = [...list];
+  if(sortMode === 'name') arr.sort((a,b) => a.name.localeCompare(b.name));
+  else if(sortMode === 'recent') arr.sort((a,b) => b.id - a.id);
+  else arr.sort((a,b) => daysLeftFor(a) - daysLeftFor(b));
+  return arr;
+}
+
+function buildCard(p){
+  const st = statusFor(daysLeftFor(p));
+  const card = document.createElement('div');
+  card.className = 'card status-' + st.cls + (p.justWatered ? ' watered' : '');
+  card.dataset.id = p.id;
+  card.innerHTML = `
+    <div class="punch"></div>
+    <div class="edit-hint" title="Double-click to edit">✎</div>
+    <div class="thumb">${leafSVG}</div>
+    <h3>${p.name}</h3>
+    <div class="meta">
+      <span>${p.room}</span>
+      <span>💧 ${MOISTURE_SHORT[p.soilMoisture] || ''}</span>
+      ${p.family ? `<span>${p.family}</span>` : ''}
+      ${p.maxHeight ? `<span>${p.maxHeight}</span>` : ''}
+    </div>
+    <div class="status ${st.cls}"><span class="dot"></span>${st.text}</div>
+    <button class="water-btn" data-id="${p.id}">
+      <span class="water-fill"></span>
+      <span class="water-label">💧 Hold to water</span>
+      <span class="water-confirm">✓ Watered!</span>
+    </button>
+  `;
+  if(p.hasImage){
+    loadImage(p.id).then(dataUrl => {
+      if(dataUrl){
+        const thumb = card.querySelector('.thumb');
+        if(thumb) thumb.innerHTML = `<img src="${dataUrl}" alt="${p.name}">`;
+      }
+    });
+  }
+  if(p.justWatered){
+    p.justWatered = false;
+    setTimeout(() => card.classList.remove('watered'), 950);
+  }
+  return card;
+}
+
+function render(){
+  grid.innerHTML = '';
+  const visible = plants.filter(p => matchesSearch(p) && matchesFilter(p));
+
+  if(!visible.length){
+    emptyState.style.display = plants.length ? 'block' : 'none';
+    emptyState.textContent = plants.length
+      ? 'No plants match your search or filter.'
+      : '';
+    return;
+  }
+  emptyState.style.display = 'none';
+
+  const byRoom = new Map();
+  visible.forEach(p => {
+    const key = p.room || 'Other';
+    if(!byRoom.has(key)) byRoom.set(key, []);
+    byRoom.get(key).push(p);
+  });
+  const roomNames = [...byRoom.keys()].sort((a,b) => a.localeCompare(b));
+
+  roomNames.forEach(room => {
+    const list = sortPlantList(byRoom.get(room));
+    const section = document.createElement('section');
+    section.className = 'room-group';
+    section.innerHTML = `<h2 class="room-title">${room} <span class="count">${list.length}</span></h2>`;
+    const sectionGrid = document.createElement('div');
+    sectionGrid.className = 'grid';
+    list.forEach(p => sectionGrid.appendChild(buildCard(p)));
+    section.appendChild(sectionGrid);
+    grid.appendChild(section);
+  });
+}
+
+function registerWatering(id){
+  const plant = plants.find(p => p.id === Number(id));
+  if(!plant) return;
+  const now = new Date();
+  const todayISO = now.toISOString();
+  const todayDateOnly = todayISO.slice(0,10);
+  if(!Array.isArray(plant.history)) plant.history = [];
+  if(plant.history[0] !== todayDateOnly){
+    plant.history.unshift(todayDateOnly);
+    if(plant.history.length > 30) plant.history.length = 30;
+  }
+  plant.lastWatered = todayISO;
+  plant.justWatered = true;
+  savePlants();
+  render();
+}
+
+/* ============== Hold-to-water (2s) ============== */
+const HOLD_MS = 2000;
+let holdTimer = null;
+let holdTarget = null;
+
+function startHold(btn){
+  if(!btn || btn.classList.contains('filling')) return;
+  btn.classList.add('filling');
+  holdTarget = btn;
+  holdTimer = setTimeout(() => {
+    const id = btn.dataset.id;
+    holdTimer = null;
+    holdTarget = null;
+    registerWatering(id);
+  }, HOLD_MS);
+}
+function cancelHold(){
+  if(holdTimer){ clearTimeout(holdTimer); holdTimer = null; }
+  if(holdTarget){ holdTarget.classList.remove('filling'); holdTarget = null; }
+}
+grid.addEventListener('pointerdown', (e) => {
+  const btn = e.target.closest('.water-btn');
+  if(!btn) return;
+  e.preventDefault();
+  startHold(btn);
+});
+grid.addEventListener('pointerup', cancelHold);
+grid.addEventListener('pointerleave', cancelHold);
+grid.addEventListener('pointercancel', cancelHold);
+grid.addEventListener('contextmenu', (e) => { if(e.target.closest('.water-btn')) e.preventDefault(); });
+
+grid.addEventListener('dblclick', (e) => {
+  if(e.target.closest('.water-btn')) return;
+  const card = e.target.closest('.card');
+  if(!card) return;
+  const plant = plants.find(p => p.id === Number(card.dataset.id));
+  if(plant) openForEdit(plant);
+});
+
+/* ============== Save (add or edit) ============== */
+saveBtn.addEventListener('click', async () => {
+  if(saveBtn.disabled) return;
+  const intervall = parseInt(fIntervall.value, 10) || 1;
+
+  if(editingId !== null){
+    const plant = plants.find(p => p.id === editingId);
+    if(plant){
+      plant.name = fNavn.value.trim();
+      plant.room = fRom.value.trim();
+      plant.intervall = intervall;
+      plant.soilMoisture = selectedMoisture;
+      plant.family = fFamilie.value.trim();
+      plant.maxHeight = fHoyde.value.trim();
+      if(imageChanged){
+        if(currentImage){
+          await saveImage(plant.id, currentImage);
+          plant.hasImage = true;
+        } else {
+          await deleteImage(plant.id);
+          plant.hasImage = false;
+        }
+      }
+    }
+  } else {
+    const newPlant = {
+      id: ++idCounter,
+      name: fNavn.value.trim(),
+      room: fRom.value.trim(),
+      intervall: intervall,
+      soilMoisture: selectedMoisture,
+      lastWatered: new Date().toISOString(),
+      history: [new Date().toISOString().slice(0,10)],
+      family: fFamilie.value.trim(),
+      maxHeight: fHoyde.value.trim(),
+      hasImage: !!currentImage,
+      justWatered: false
+    };
+    plants.push(newPlant);
+    if(currentImage){
+      await saveImage(newPlant.id, currentImage);
+    }
+  }
+  savePlants();
+  render();
+  closeSheet();
+});
+
+render();
+migrateOldImagesToIndexedDB();
+
+/* ============== PWA: service worker ============== */
+if('serviceWorker' in navigator && !window.AndroidNotify){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+
+/* ============== PWA: install banner ============== */
+const installBanner = document.getElementById('installBanner');
+const installBtn = document.getElementById('installBtn');
+const installDismiss = document.getElementById('installDismiss');
+const installText = document.getElementById('installText');
+let deferredPrompt = null;
+
+function isStandalone(){
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+function showInstallBanner(){
+  if(isStandalone()) return;
+  if(localStorage.getItem('vanning-install-prompted')) return;
+  installBanner.classList.add('show');
+}
+function hideInstallBanner(){
+  installBanner.classList.remove('show');
+  localStorage.setItem('vanning-install-prompted', '1');
+}
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  showInstallBanner();
+});
+installBtn.addEventListener('click', async () => {
+  if(deferredPrompt){
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null;
+  }
+  hideInstallBanner();
+});
+installDismiss.addEventListener('click', hideInstallBanner);
+
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+if(isIOS && !isStandalone() && !localStorage.getItem('vanning-install-prompted')){
+  installText.textContent = "Tap Share, then 'Add to Home Screen'.";
+  installBtn.style.display = 'none';
+  showInstallBanner();
+}
+
+/* ============== Notifications (local + push) ============== */
+const notifyToast = document.getElementById('notifyToast');
+let toastTimer = null;
+function showToast(msg){
+  notifyToast.textContent = msg;
+  notifyToast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => notifyToast.classList.remove('show'), 3600);
+}
+
+const notifyToggle = document.getElementById('notifyToggle');
+const notifyStatusText = document.getElementById('notifyStatusText');
+const notifyNote = document.getElementById('notifyNote');
+
+function updateNotifyToggleUI(){
+  if(window.AndroidNotify){
+    const on = nativeNotifyOn();
+    notifyToggle.classList.toggle('on', on);
+    notifyStatusText.textContent = on ? 'On' : 'Off';
+    notifyNote.textContent = (!on && localStorage.getItem('vanning-notify-asked') === '1' && !window.AndroidNotify.hasPermission())
+      ? 'Notifications are blocked. Tap the switch to open Android settings and allow them.'
+      : 'Get a reminder at 08:00 on days when a plant needs water. Works even when the app is closed.';
+    return;
+  }
+  const enabled = localStorage.getItem('vanning-notify-enabled') === '1'
+    && typeof Notification !== 'undefined' && Notification.permission === 'granted';
+  notifyToggle.classList.toggle('on', enabled);
+  notifyStatusText.textContent = enabled ? 'On' : 'Off';
+  if(typeof Notification === 'undefined'){
+    notifyNote.textContent = 'Your browser does not support notifications.';
+  } else if(Notification.permission === 'denied'){
+    notifyNote.textContent = 'Notifications are blocked in your browser settings.';
+  } else {
+    notifyNote.textContent = 'Turn on to get notified when a plant needs water.';
+  }
+}
+
+async function sendNotification(title, body){
+  if(typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+  try{
+    if('serviceWorker' in navigator){
+      const reg = await navigator.serviceWorker.ready;
+      reg.showNotification(title, {
+        body, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png',
+        tag: 'verdant-reminder-' + title
+      });
+      return;
+    }
+  }catch(e){}
+  new Notification(title, { body, icon: 'icons/icon-192.png' });
+}
+
+function checkWateringDueAndNotify(){
+  if(localStorage.getItem('vanning-notify-enabled') !== '1') return;
+  if(typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+  const today = new Date().toISOString().slice(0,10);
+  let changed = false;
+  plants.forEach(p => {
+    const daysLeft = daysLeftFor(p);
+    if(daysLeft <= 0 && p.lastNotified !== today){
+      sendNotification(
+        `🌱 ${p.name} needs water`,
+        `${p.room} · ${MOISTURE_SHORT[p.soilMoisture] || ''} — ${daysLeft < 0 ? 'overdue ' + Math.abs(daysLeft) + ' days' : 'today'}.`
+      );
+      p.lastNotified = today;
+      changed = true;
+    }
+  });
+  if(changed) savePlants();
+}
+
+function urlBase64ToUint8Array(base64String){
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for(let i = 0; i < rawData.length; ++i){ outputArray[i] = rawData.charCodeAt(i); }
+  return outputArray;
+}
+async function subscribeToPush(){
+  if(!backendConfigured()) return false;
+  if(!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+  try{
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if(!sub){
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+    }
+    await fetch(BACKEND_URL + '/api/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deviceId, subscription: sub })
+    });
+    await syncPlantsToServer();
+    return true;
+  }catch(e){
+    console.error('Push subscription failed', e);
+    return false;
+  }
+}
+async function unsubscribeFromPush(){
+  if(!backendConfigured()) return;
+  try{
+    await fetch(BACKEND_URL + '/api/unsubscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deviceId })
+    });
+  }catch(e){}
+}
+
+notifyToggle.addEventListener('click', async () => {
+  if(window.AndroidNotify){
+    const A = window.AndroidNotify;
+    if(nativeNotifyOn()){
+      localStorage.setItem('vanning-notify-enabled', '0');
+      syncNative(); updateNotifyToggleUI();
+      showToast('Notifications turned off.');
+      return;
+    }
+    const turnOn = () => {
+      localStorage.setItem('vanning-notify-enabled', '1');
+      syncNative(); updateNotifyToggleUI();
+      showToast('Notifications on - you\'ll get a reminder at 08:00 when a plant needs water.');
+    };
+    if(A.hasPermission()){ turnOn(); return; }
+    if(localStorage.getItem('vanning-notify-asked') === '1' && !A.canAskPermission()){
+      A.openSettings();
+      return;
+    }
+    localStorage.setItem('vanning-notify-asked', '1');
+    window.onNativeNotifyPermission = (granted) => {
+      if(granted) turnOn();
+      else { updateNotifyToggleUI(); showToast('You need to allow notifications to turn this on.'); }
+    };
+    A.requestPermission();
+    return;
+  }
+  if(typeof Notification === 'undefined'){
+    showToast('Your browser does not support notifications.');
+    return;
+  }
+  const currentlyOn = localStorage.getItem('vanning-notify-enabled') === '1' && Notification.permission === 'granted';
+
+  if(currentlyOn){
+    localStorage.setItem('vanning-notify-enabled', '0');
+    updateNotifyToggleUI();
+    unsubscribeFromPush();
+    showToast('Notifications turned off.');
+    return;
+  }
+  if(Notification.permission === 'denied'){
+    showToast('Notifications are blocked. Enable them in your browser settings and try again.');
+    return;
+  }
+  const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
+  if(permission === 'granted'){
+    localStorage.setItem('vanning-notify-enabled', '1');
+    updateNotifyToggleUI();
+    checkWateringDueAndNotify();
+    if(backendConfigured()){
+      const ok = await subscribeToPush();
+      showToast(ok
+        ? 'Notifications on — you\'ll be notified even if the app is closed.'
+        : 'Notifications on locally, but the push service could not be reached.');
+    } else {
+      showToast('Notifications on — you\'ll be notified while the app is open.');
+    }
+  } else {
+    showToast('You need to allow notifications to turn this on.');
+  }
+});
+
+updateNotifyToggleUI();
+syncNative();
+checkWateringDueAndNotify();
+if(localStorage.getItem('vanning-notify-enabled') === '1' && backendConfigured()){
+  subscribeToPush();
+}
+
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'visible'){
+    checkWateringDueAndNotify();
+    if(window.AndroidNotify){ syncNative(); updateNotifyToggleUI(); }
+  }
+});
+setInterval(checkWateringDueAndNotify, 30 * 60 * 1000);
+</script>
+
+</body>
+</html>
