@@ -627,6 +627,21 @@
   .history-empty{ font-size:12.5px; color:var(--ink-soft); font-style:italic; margin-top:6px; }
 
   .img-row{ display:flex; gap:10px; }
+  .identify-row{ display:none; margin-top:10px; }
+  .identify-row.show{ display:block; }
+  .identify-btn{
+    width:100%; padding:12px 14px; border-radius:14px; border:1.5px solid var(--sage);
+    background:transparent; color:var(--ink); font-family:'Work Sans', sans-serif;
+    font-size:14px; font-weight:600; cursor:pointer;
+  }
+  .identify-btn:disabled{ opacity:.6; cursor:default; }
+  .key-input{
+    width:100%; margin-top:10px; padding:12px 14px; border-radius:12px; border:1.5px solid var(--line);
+    background:var(--card); color:var(--ink); font-family:'Work Sans', sans-serif; font-size:14px; outline:none;
+  }
+  .key-input:focus{ border-color:var(--sage); }
+  .settings-note a{ color:var(--sage); }
+  .id-conf{ font-weight:600; }
   .img-btn{
     flex:1;
     border:1.5px dashed var(--sage);
@@ -940,6 +955,9 @@
           <img id="imgPreviewTag" src="" alt="">
           <button type="button" id="removeImg">✕</button>
         </div>
+        <div class="identify-row" id="identifyRow">
+          <button type="button" class="identify-btn" id="identifyBtn">🔍 Identify plant from photo</button>
+        </div>
       </div>
 
       <div class="history-section" id="historySection" style="display:none;">
@@ -969,6 +987,15 @@
   <div class="popup-card">
     <h3 class="popup-title">Soil moisture</h3>
     <div id="moistureOptions"></div>
+  </div>
+</div>
+
+<!-- Plant identification results popup -->
+<div class="popup-backdrop" id="identifyPopup">
+  <div class="popup-card">
+    <h3 class="popup-title">Is it one of these?</h3>
+    <div id="identifyOptions"></div>
+    <p class="settings-note" id="identifyNote"></p>
   </div>
 </div>
 
@@ -1010,6 +1037,12 @@
           <button class="toggle-switch" id="notifyToggle"><span class="knob"></span></button>
         </div>
         <p class="settings-note" id="notifyNote">Turn on to get notified when a plant needs water.</p>
+      </div>
+
+      <div class="settings-section">
+        <h3>Plant identification</h3>
+        <p class="settings-note" style="margin-top:0">Identify a plant from a photo using Pl@ntNet (needs internet; the photo is sent to Pl@ntNet). Get a free API key at <a href="https://my.plantnet.org" target="_blank" rel="noopener">my.plantnet.org</a> and paste it here.</p>
+        <input type="text" class="key-input" id="plantnetKey" placeholder="Pl@ntNet API key" autocomplete="off" autocapitalize="off" spellcheck="false">
       </div>
     </div>
   </div>
@@ -1845,6 +1878,164 @@ document.getElementById('removeImg').addEventListener('click', () => {
   currentImage = null;
   imageChanged = true;
   document.getElementById('imgPreview').classList.remove('show');
+});
+
+
+/* ============== Identify plant from photo (Pl@ntNet) ============== */
+const identifyRow = document.getElementById('identifyRow');
+const identifyBtn = document.getElementById('identifyBtn');
+const identifyPopup = document.getElementById('identifyPopup');
+const identifyOptions = document.getElementById('identifyOptions');
+const identifyNote = document.getElementById('identifyNote');
+const plantnetKeyInput = document.getElementById('plantnetKey');
+const PLANTNET_KEY_STORE = 'verdant-plantnet-key';
+
+try{ plantnetKeyInput.value = localStorage.getItem(PLANTNET_KEY_STORE) || ''; }catch(e){}
+plantnetKeyInput.addEventListener('input', () => {
+  try{ localStorage.setItem(PLANTNET_KEY_STORE, plantnetKeyInput.value.trim()); }catch(e){}
+});
+
+// Show the Identify button only while the form has a photo.
+new MutationObserver(() => {
+  identifyRow.classList.toggle('show', document.getElementById('imgPreview').classList.contains('show'));
+}).observe(document.getElementById('imgPreview'), { attributes:true, attributeFilter:['class'] });
+
+identifyPopup.addEventListener('click', (e) => { if(e.target === identifyPopup) closePopup(identifyPopup); });
+
+// Shrink the photo to max 1024 px JPEG: faster upload and well within API limits.
+function photoToJpegBase64(dataUrl){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const max = 1024;
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      resolve(c.toDataURL('image/jpeg', 0.85).split(',')[1]);
+    };
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+}
+
+let identifyReqId = 0;
+const identifyPending = {};
+// Called by the Android wrapper when the native request finishes.
+window.onIdentifyResult = function(id, status, body){
+  const cb = identifyPending[id];
+  if(cb){ delete identifyPending[id]; cb(status, body); }
+};
+
+function plantnetRequest(base64, key){
+  return new Promise((resolve) => {
+    if(window.AndroidNotify && window.AndroidNotify.identify){
+      const id = String(++identifyReqId);
+      identifyPending[id] = (status, body) => resolve({ status, body });
+      window.AndroidNotify.identify(id, base64, key);
+      return;
+    }
+    const bytes = atob(base64);
+    const arr = new Uint8Array(bytes.length);
+    for(let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+    const fd = new FormData();
+    fd.append('images', new Blob([arr], { type:'image/jpeg' }), 'plant.jpg');
+    fd.append('organs', 'auto');
+    fetch('https://my-api.plantnet.org/v2/identify/all?lang=en&nb-results=5&api-key=' + encodeURIComponent(key), { method:'POST', body:fd })
+      .then(r => r.text().then(t => resolve({ status:r.status, body:t })))
+      .catch(() => resolve({ status:0, body:'' }));
+  });
+}
+
+function titleCase(str){
+  return str.replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+}
+function findCatalogFor(sci){
+  const q = sci.toLowerCase();
+  const clean = n => n.replace(/\(.*?\)/g, '').trim().toLowerCase();
+  let hit = PLANT_CATALOG.find(p => { const c = clean(p.n); return c === q || q.startsWith(c + ' '); });
+  if(!hit){
+    const genus = q.split(' ')[0];
+    hit = PLANT_CATALOG.find(p => clean(p.n).split(' ')[0] === genus);
+  }
+  return hit || null;
+}
+
+function showIdentifyResults(results){
+  const items = results.slice(0, 4).map(r => {
+    const sci = r.species.scientificNameWithoutAuthor || '';
+    const common = (r.species.commonNames || [])[0];
+    return {
+      display: titleCase(common || sci),
+      sci,
+      family: (r.species.family && r.species.family.scientificNameWithoutAuthor) || '',
+      score: Math.round((r.score || 0) * 100),
+      cat: findCatalogFor(sci)
+    };
+  });
+  identifyOptions.innerHTML = items.map((it, i) => `
+    <div class="popup-option" data-idx="${i}">
+      <span class="radio"></span>
+      <span class="opt-text"><strong>${it.display}</strong><span><i>${it.sci}</i>${it.family ? ' · ' + it.family : ''} · <span class="id-conf">${it.score}%</span></span></span>
+    </div>`).join('');
+  identifyOptions.__items = items;
+  identifyNote.textContent = items[0].score < 30
+    ? 'Not very sure. A clear, close photo of a leaf or flower gives better results.'
+    : 'Pick the best match to fill in the name, family and care defaults.';
+  openPopup(identifyPopup);
+}
+
+identifyOptions.addEventListener('click', (e) => {
+  const row = e.target.closest('.popup-option');
+  if(!row || !identifyOptions.__items) return;
+  const it = identifyOptions.__items[Number(row.dataset.idx)];
+  if(!it) return;
+  fNavn.value = it.display;
+  fNavn.dispatchEvent(new Event('input', { bubbles:true }));
+  hideSuggestions();
+  if(!fFamilie.value.trim()) fFamilie.value = it.cat ? it.cat.f : it.family;
+  if(it.cat){
+    if(!fHoyde.value.trim()) fHoyde.value = it.cat.h;
+    if(!fIntervall.value.trim()) fIntervall.value = it.cat.i;
+    if(!selectedMoisture){ selectedMoisture = it.cat.m; updateMoistureFieldUI(); }
+  }
+  closePopup(identifyPopup);
+  checkValid();
+  showToast(it.cat ? 'Filled in from the plant catalog.' : 'Name filled in. Add the care details yourself.');
+});
+
+identifyBtn.addEventListener('click', async () => {
+  if(!currentImage) return;
+  const key = (localStorage.getItem(PLANTNET_KEY_STORE) || '').trim();
+  if(!key){
+    showToast('Add your free Pl@ntNet API key first (⋮ menu, Plant identification).');
+    return;
+  }
+  identifyBtn.disabled = true;
+  identifyBtn.textContent = 'Identifying…';
+  try{
+    const b64 = await photoToJpegBase64(currentImage);
+    const res = await plantnetRequest(b64, key);
+    if(res.status === 200){
+      const data = JSON.parse(res.body);
+      if(data.results && data.results.length) showIdentifyResults(data.results);
+      else showToast('Could not recognise the plant. Try another photo.');
+    } else if(res.status === 401 || res.status === 403){
+      showToast('The API key was not accepted. Check it in the ⋮ menu.');
+    } else if(res.status === 404){
+      showToast('No match found. Try a clearer photo of a leaf or flower.');
+    } else if(res.status === 429){
+      showToast('Daily identification limit reached. Try again tomorrow.');
+    } else if(res.status === 0){
+      showToast('Could not reach Pl@ntNet. Check your internet connection.');
+    } else {
+      showToast('Identification failed (error ' + res.status + ').');
+    }
+  }catch(e){
+    showToast('Identification failed. Try another photo.');
+  }
+  identifyBtn.disabled = false;
+  identifyBtn.textContent = '🔍 Identify plant from photo';
 });
 
 /* ============== Rendering ============== */
