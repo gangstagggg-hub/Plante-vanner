@@ -34,7 +34,13 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.webkit.WebViewAssetLoader;
 
+import org.json.JSONObject;
+
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
 /**
  * Viser webappen som ligger i assets (mappen web/ i repoet) inne i en WebView.
@@ -272,6 +278,63 @@ public class MainActivity extends ComponentActivity {
                         .putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
                 startActivity(i);
             });
+        }
+
+        /**
+         * Gjenkjenner en plante via Pl@ntNet. Kjører nettverkskallet her (ikke i WebView),
+         * og svarer webappen via window.onIdentifyResult(id, statuskode, tekst).
+         */
+        @JavascriptInterface
+        public void identify(final String id, final String base64Jpeg, final String apiKey) {
+            new Thread(() -> {
+                int status = 0;
+                String body = "";
+                HttpURLConnection conn = null;
+                try {
+                    byte[] img = Base64.decode(base64Jpeg, Base64.DEFAULT);
+                    String boundary = "----verdant" + System.currentTimeMillis();
+                    URL url = new URL("https://my-api.plantnet.org/v2/identify/all?lang=en&nb-results=5&api-key="
+                            + java.net.URLEncoder.encode(apiKey, "UTF-8"));
+                    conn = (HttpURLConnection) url.openConnection();
+                    conn.setConnectTimeout(15000);
+                    conn.setReadTimeout(30000);
+                    conn.setDoOutput(true);
+                    conn.setRequestMethod("POST");
+                    conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+                    try (OutputStream out = conn.getOutputStream()) {
+                        String head = "--" + boundary + "\r\n"
+                                + "Content-Disposition: form-data; name=\"organs\"\r\n\r\nauto\r\n"
+                                + "--" + boundary + "\r\n"
+                                + "Content-Disposition: form-data; name=\"images\"; filename=\"plant.jpg\"\r\n"
+                                + "Content-Type: image/jpeg\r\n\r\n";
+                        out.write(head.getBytes("UTF-8"));
+                        out.write(img);
+                        out.write(("\r\n--" + boundary + "--\r\n").getBytes("UTF-8"));
+                    }
+                    status = conn.getResponseCode();
+                    InputStream in = status >= 400 ? conn.getErrorStream() : conn.getInputStream();
+                    if (in != null) {
+                        ByteArrayOutputStream buf = new ByteArrayOutputStream();
+                        byte[] chunk = new byte[8192];
+                        int n;
+                        while ((n = in.read(chunk)) != -1) {
+                            buf.write(chunk, 0, n);
+                        }
+                        in.close();
+                        body = buf.toString("UTF-8");
+                    }
+                } catch (Exception e) {
+                    status = 0;
+                    body = "";
+                } finally {
+                    if (conn != null) {
+                        conn.disconnect();
+                    }
+                }
+                final String js = "window.onIdentifyResult(" + JSONObject.quote(id) + "," + status + ","
+                        + JSONObject.quote(body) + ")";
+                runOnUiThread(() -> webView.evaluateJavascript(js, null));
+            }).start();
         }
 
         @JavascriptInterface
